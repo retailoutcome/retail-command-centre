@@ -32,7 +32,9 @@ import {
 } from 'lucide-react';
 
 // --- Gemini API Setup ---
-const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+// Safely check for process to avoid ReferenceError in browser-only environments
+const apiKey = typeof process !== 'undefined' && process.env && process.env.REACT_APP_GEMINI_API_KEY 
+  ? process.env.REACT_APP_GEMINI_API_KEY 
   : "";
 
 const callGemini = async (prompt, contextData, systemInstructionOverride = null) => {
