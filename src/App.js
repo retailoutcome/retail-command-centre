@@ -32,7 +32,10 @@ import {
 } from 'lucide-react';
 
 // --- Gemini API Setup ---
-const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+// Safely check for process to avoid ReferenceError in browser-only environments
+const apiKey = typeof process !== 'undefined' && process.env && process.env.REACT_APP_GEMINI_API_KEY 
+  ? process.env.REACT_APP_GEMINI_API_KEY 
+  : "";
 
 const callGemini = async (prompt, contextData, systemInstructionOverride = null) => {
   const defaultSystemPrompt = `You are Keith J Lockwood, author of 'The Reluctant Retailer'. 
@@ -72,6 +75,11 @@ const callGemini = async (prompt, contextData, systemInstructionOverride = null)
       }
     );
     const data = await response.json();
+    
+    if (!response.ok) {
+         return "I'm having a spot of bother connecting to my brain right now. Please check your API Key settings.";
+    }
+
     return data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm having a spot of bother thinking right now. Ask me again in a moment.";
   } catch (error) {
     console.error("AI Error:", error);
@@ -308,6 +316,59 @@ const GlobalChatbot = ({ isOpen, onClose }) => {
   );
 };
 
+const BudgetModal = ({ isOpen, onClose, data }) => {
+  if (!isOpen) return null;
+  
+  const { targetStock, currentStock, budget } = data;
+
+  return (
+    <div className="fixed inset-0 bg-[#071013]/60 z-50 flex items-center justify-center backdrop-blur-sm p-4 animate-in fade-in duration-200 font-['Poppins']">
+      <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl flex flex-col animate-in slide-in-from-bottom-4 duration-300 border-2 border-[#778472]">
+        <div className="p-5 border-b border-[#F9EFDD] flex justify-between items-center bg-[#778472] text-[#F9EFDD]">
+          <div className="flex items-center gap-3">
+             <div className="bg-[#F9EFDD]/20 p-2 rounded-full">
+                <Calculator size={20} className="text-[#E9AD5D]" />
+             </div>
+             <h3 className="font-bold text-xl font-['Caveat']">Buying Budget Breakdown</h3>
+          </div>
+          <button onClick={onClose} className="text-[#F9EFDD]/70 hover:text-[#F9EFDD] transition-colors">
+            <X size={24} />
+          </button>
+        </div>
+        <div className="p-6 space-y-6 bg-white">
+           <div className="bg-[#F9EFDD]/30 p-4 rounded-xl border border-[#778472]/10 text-sm text-[#071013]/70 italic">
+             "Target Stock represents the ideal inventory level for 10 weeks of sales. Your Buying Budget is the gap between that goal and what you currently hold."
+           </div>
+           
+           <div className="space-y-4">
+              <div className="flex justify-between items-center pb-2 border-b border-[#F9EFDD]">
+                 <span className="text-[#071013]/60 font-medium">Ideal Stock (The Goal)</span>
+                 <span className="text-[#071013] font-bold">£{targetStock.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center pb-2 border-b border-[#F9EFDD]">
+                 <span className="text-[#071013]/60 font-medium">Current Stock (Actual)</span>
+                 <span className="text-[#D12323] font-bold">- £{currentStock.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center pt-2">
+                 <span className="text-[#778472] font-extrabold text-lg">Open to Buy (Budget)</span>
+                 <span className="text-[#778472] font-extrabold text-xl">£{budget.toLocaleString()}</span>
+              </div>
+           </div>
+
+           <div className="text-xs text-[#071013]/40 text-center">
+             Calculated using your average weekly sales volume.
+           </div>
+        </div>
+        <div className="p-4 border-t border-[#F9EFDD] bg-[#F9EFDD]/30 rounded-b-2xl">
+           <button onClick={onClose} className="w-full py-2 bg-white border border-[#778472]/20 rounded-lg text-[#778472] font-bold hover:bg-[#F9EFDD] transition-colors">
+             Close
+           </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const MarketingModal = ({ isOpen, onClose, content, isLoading, productName }) => {
   if (!isOpen) return null;
   return (
@@ -334,7 +395,9 @@ const MarketingModal = ({ isOpen, onClose, content, isLoading, productName }) =>
               <p className="text-sm text-[#071013]/60 font-medium animate-pulse italic">Writing your post...</p>
             </div>
           ) : (
-            <FormattedText text={content} />
+            <div className="prose prose-stone prose-sm leading-relaxed whitespace-pre-wrap">
+              <FormattedText text={content} />
+            </div>
           )}
         </div>
       </div>
@@ -389,7 +452,7 @@ const AiConsultantModal = ({ isOpen, onClose, advice, isLoading, title }) => {
 
 // 1. STOCK ROOM VIEW
 const StockRoom = ({ inventory, setInventory }) => {
-  const [newItem, setNewItem] = useState({ name: '', category: 'Homeware', supplier: '', cost: '', rrp: '', stock: '', sales_last_month: '', sales_hist: '' });
+  const [newItem, setNewItem] = useState({ name: '', category: '', supplier: '', cost: '', rrp: '', stock: '', sales_last_month: '', sales_hist: '' });
   const [marketingModalOpen, setMarketingModalOpen] = useState(false);
   const [marketingContent, setMarketingContent] = useState('');
   const [marketingLoading, setMarketingLoading] = useState(false);
@@ -401,6 +464,7 @@ const StockRoom = ({ inventory, setInventory }) => {
     const item = {
       id: Date.now(),
       ...newItem,
+      category: newItem.category || 'General', // Default if empty
       cost: parseFloat(newItem.cost) || 0,
       rrp: parseFloat(newItem.rrp) || 0,
       stock: parseInt(newItem.stock) || 0,
@@ -408,7 +472,7 @@ const StockRoom = ({ inventory, setInventory }) => {
       sales_hist: parseInt(newItem.sales_hist) || 0,
     };
     setInventory([...inventory, item]);
-    setNewItem({ name: '', category: 'Homeware', supplier: '', cost: '', rrp: '', stock: '', sales_last_month: '', sales_hist: '' });
+    setNewItem({ name: '', category: '', supplier: '', cost: '', rrp: '', stock: '', sales_last_month: '', sales_hist: '' });
   };
 
   const handleDelete = (id) => {
@@ -471,10 +535,33 @@ const StockRoom = ({ inventory, setInventory }) => {
     reader.readAsText(file);
   };
 
+  const downloadCSV = () => {
+    const headers = ["Product Name,Category,Supplier,Cost Price,Selling Price,Current Stock,Sales (30d)"];
+    const rows = inventory.map(item => 
+      `"${item.name}","${item.category}","${item.supplier}",${item.cost},${item.rrp},${item.stock},${item.sales_last_month}`
+    );
+    const csvContent = [headers, ...rows].join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "stock_room_inventory.csv");
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const getMargin = (cost, rrp) => {
     if (!rrp || rrp === 0) return 0;
     const exVat = rrp / 1.2; 
     return ((exVat - cost) / exVat) * 100;
+  };
+
+  // Helper: Calculate Target Stock (10 weeks cover) based on last 30d sales (Units)
+  const getTargetStock = (sales30d) => {
+    const weeklySales = sales30d / 4;
+    return Math.ceil(weeklySales * 10); // 10 weeks cover in units
   };
 
   return (
@@ -501,7 +588,10 @@ const StockRoom = ({ inventory, setInventory }) => {
           >
              <UploadCloud size={16} /> Upload Stock (CSV)
           </button>
-          <button className="flex items-center gap-2 text-sm font-medium text-[#778472] bg-[#F9EFDD] px-4 py-2 rounded-full hover:bg-[#F9EFDD]/80 transition-colors border border-[#778472]/20">
+          <button 
+             onClick={downloadCSV}
+             className="flex items-center gap-2 text-sm font-medium text-[#778472] bg-[#F9EFDD] px-4 py-2 rounded-full hover:bg-[#F9EFDD]/80 transition-colors border border-[#778472]/20"
+          >
              <Download size={16} /> Download List
           </button>
         </div>
@@ -518,49 +608,61 @@ const StockRoom = ({ inventory, setInventory }) => {
               <th className="px-6 py-4 font-bold text-right">Margin</th>
               <th className="px-6 py-4 font-bold text-right">Stock</th>
               <th className="px-6 py-4 font-bold text-right">Sold (30d)</th>
+              <th className="px-6 py-4 font-bold text-right">Target (10wks)</th>
               <th className="px-6 py-4 font-bold text-center">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#E9AD5D]/10 bg-white">
-            {inventory.map((item) => (
-              <tr key={item.id} className="hover:bg-[#F9EFDD]/30 transition-colors group">
-                <td className="px-6 py-4 font-medium text-[#071013]">{item.name}</td>
-                <td className="px-6 py-4">
-                  <span className="px-2.5 py-1 bg-[#F9EFDD] rounded-md text-xs font-medium text-[#778472] border border-[#E9AD5D]/20">{item.category}</span>
-                </td>
-                <td className="px-6 py-4 text-right text-[#071013]/60">£{item.cost.toFixed(2)}</td>
-                <td className="px-6 py-4 text-right text-[#071013] font-bold">£{item.rrp.toFixed(2)}</td>
-                <td className="px-6 py-4 text-right">
-                  <span className={`font-bold px-2 py-1 rounded ${getMargin(item.cost, item.rrp) < 45 ? 'bg-[#D12323]/10 text-[#D12323]' : 'bg-green-100 text-green-700'}`}>
-                    {getMargin(item.cost, item.rrp).toFixed(0)}%
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-right font-medium text-[#071013]">{item.stock}</td>
-                <td className="px-6 py-4 text-right text-[#778472] font-bold">{item.sales_last_month}</td>
-                <td className="px-6 py-4 text-center flex justify-center gap-2">
-                  <button 
-                    onClick={() => handleGenerateMarketing(item)}
-                    className="p-1.5 bg-[#F9EFDD] text-[#E9AD5D] rounded hover:bg-[#E9AD5D] hover:text-white transition-colors"
-                    title="Generate Marketing Copy"
-                  >
-                    <Megaphone size={16} />
-                  </button>
-                  <button onClick={() => handleDelete(item.id)} className="p-1.5 text-[#071013]/30 hover:text-[#D12323] transition-colors"><X size={16} /></button>
-                </td>
-              </tr>
-            ))}
+            {inventory.map((item) => {
+               const target = getTargetStock(item.sales_last_month);
+               const isLow = item.stock < target;
+               return (
+                <tr key={item.id} className="hover:bg-[#F9EFDD]/30 transition-colors group">
+                  <td className="px-6 py-4 font-medium text-[#071013]">{item.name}</td>
+                  <td className="px-6 py-4">
+                    <span className="px-2.5 py-1 bg-[#F9EFDD] rounded-md text-xs font-medium text-[#778472] border border-[#E9AD5D]/20">{item.category}</span>
+                  </td>
+                  <td className="px-6 py-4 text-right text-[#071013]/60">£{item.cost.toFixed(2)}</td>
+                  <td className="px-6 py-4 text-right text-[#071013] font-bold">£{item.rrp.toFixed(2)}</td>
+                  <td className="px-6 py-4 text-right">
+                    <span className={`font-bold px-2 py-1 rounded ${getMargin(item.cost, item.rrp) < 45 ? 'bg-[#D12323]/10 text-[#D12323]' : 'bg-green-100 text-green-700'}`}>
+                      {getMargin(item.cost, item.rrp).toFixed(0)}%
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-right font-medium text-[#071013]">{item.stock}</td>
+                  <td className="px-6 py-4 text-right text-[#778472] font-bold">{item.sales_last_month}</td>
+                  <td className={`px-6 py-4 text-right font-bold ${isLow ? 'text-[#E9AD5D]' : 'text-[#071013]/30'}`}>
+                     {target}
+                  </td>
+                  <td className="px-6 py-4 text-center flex justify-center gap-2">
+                    <button 
+                      onClick={() => handleGenerateMarketing(item)}
+                      className="p-1.5 bg-[#F9EFDD] text-[#E9AD5D] rounded hover:bg-[#E9AD5D] hover:text-white transition-colors"
+                      title="Generate Marketing Copy"
+                    >
+                      <Megaphone size={16} />
+                    </button>
+                    <button onClick={() => handleDelete(item.id)} className="p-1.5 text-[#071013]/30 hover:text-[#D12323] transition-colors"><X size={16} /></button>
+                  </td>
+                </tr>
+               );
+            })}
             <tr className="bg-[#F9EFDD]/10 border-t-2 border-[#E9AD5D]/20">
               <td className="px-6 py-3"><input placeholder="New Item Name" className="w-full p-2 border border-[#E9AD5D]/20 rounded-lg focus:ring-2 focus:ring-[#778472] outline-none" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} /></td>
               <td className="px-6 py-3">
-                <select className="w-full p-2 border border-[#E9AD5D]/20 rounded-lg" value={newItem.category} onChange={e => setNewItem({...newItem, category: e.target.value})}>
-                  <option>Homeware</option><option>Gifts</option><option>Clothing</option><option>Food</option>
-                </select>
+                <input 
+                  placeholder="e.g. Homeware" 
+                  className="w-full p-2 border border-[#E9AD5D]/20 rounded-lg" 
+                  value={newItem.category} 
+                  onChange={e => setNewItem({...newItem, category: e.target.value})} 
+                />
               </td>
               <td className="px-6 py-3 text-right"><input type="number" placeholder="0.00" className="w-20 p-2 border border-[#E9AD5D]/20 rounded-lg text-right" value={newItem.cost} onChange={e => setNewItem({...newItem, cost: e.target.value})} /></td>
               <td className="px-6 py-3 text-right"><input type="number" placeholder="0.00" className="w-20 p-2 border border-[#E9AD5D]/20 rounded-lg text-right" value={newItem.rrp} onChange={e => setNewItem({...newItem, rrp: e.target.value})} /></td>
               <td className="px-6 py-3 text-center text-[#071013]/30">-</td>
               <td className="px-6 py-3 text-right"><input type="number" placeholder="0" className="w-16 p-2 border border-[#E9AD5D]/20 rounded-lg text-right" value={newItem.stock} onChange={e => setNewItem({...newItem, stock: e.target.value})} /></td>
               <td className="px-6 py-3 text-right"><input type="number" placeholder="0" className="w-16 p-2 border border-[#E9AD5D]/20 rounded-lg text-right" value={newItem.sales_last_month} onChange={e => setNewItem({...newItem, sales_last_month: e.target.value})} /></td>
+              <td className="px-6 py-3 text-center">Wait...</td>
               <td className="px-6 py-3 text-center">
                 <button onClick={handleAddItem} className="bg-[#778472] text-[#F9EFDD] p-2 rounded-lg hover:bg-[#5f6a5a] shadow-sm transition-all"><Plus size={20} /></button>
               </td>
@@ -583,6 +685,7 @@ const StockRoom = ({ inventory, setInventory }) => {
 // 2. BIG PICTURE VIEW
 const BigPicture = ({ inventory }) => {
   const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [budgetModalOpen, setBudgetModalOpen] = useState(false);
   const [aiAdvice, setAiAdvice] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   
@@ -597,23 +700,56 @@ const BigPicture = ({ inventory }) => {
     return { totalStockVal, totalSalesVal, weeksCover };
   }, [inventory]);
 
+  // Budget Calculation Logic (Target 10 weeks cover)
+  const budgetData = useMemo(() => {
+    const avgWeeklySalesItems = inventory.reduce((acc, item) => acc + (item.sales_last_month / 4), 0);
+    const avgItemCost = inventory.reduce((acc, item) => acc + item.cost, 0) / (inventory.length || 1);
+    const weeklySalesCost = avgWeeklySalesItems * avgItemCost;
+    
+    const targetWeeks = 10;
+    const targetStock = weeklySalesCost * targetWeeks;
+    const currentStock = stats.totalStockVal;
+    const budget = Math.max(0, targetStock - currentStock);
+    
+    return {
+      targetStock: Math.round(targetStock),
+      currentStock: Math.round(currentStock),
+      budget: Math.round(budget)
+    };
+  }, [inventory, stats.totalStockVal]);
+
   const categoryBreakdown = useMemo(() => {
     const cats = {};
     inventory.forEach(item => {
-      if (!cats[item.category]) cats[item.category] = { sales: 0, stock: 0, marginSum: 0, count: 0 };
-      cats[item.category].sales += (item.sales_last_month * item.rrp);
-      cats[item.category].stock += (item.stock * item.cost);
+      // Use default if category is missing
+      const catName = item.category || 'Uncategorized';
+      if (!cats[catName]) cats[catName] = { sales: 0, stock: 0, marginSum: 0, count: 0, salesQty: 0, costSum: 0 };
+      
+      cats[catName].sales += (item.sales_last_month * item.rrp);
+      cats[catName].stock += (item.stock * item.cost);
+      cats[catName].salesQty += item.sales_last_month;
+      cats[catName].costSum += item.cost; // simple sum for avg
+      
       const exVat = item.rrp / 1.2;
       const m = item.rrp > 0 ? ((exVat - item.cost) / exVat) : 0;
-      cats[item.category].marginSum += m;
-      cats[item.category].count += 1;
+      cats[catName].marginSum += m;
+      cats[catName].count += 1;
     });
-    return Object.keys(cats).map(k => ({
-      name: k,
-      sales: cats[k].sales,
-      stock: cats[k].stock,
-      avgMargin: cats[k].count > 0 ? (cats[k].marginSum / cats[k].count) * 100 : 0
-    }));
+    
+    return Object.keys(cats).map(k => {
+       const weeklySalesQty = cats[k].salesQty / 4;
+       // Avg item cost in this category
+       const avgCost = cats[k].costSum / cats[k].count;
+       const targetStockVal = (weeklySalesQty * avgCost) * 10; // 10 weeks cover target value in cost
+       
+       return {
+        name: k,
+        sales: cats[k].sales,
+        stock: cats[k].stock,
+        targetStock: targetStockVal,
+        avgMargin: cats[k].count > 0 ? (cats[k].marginSum / cats[k].count) * 100 : 0
+      };
+    });
   }, [inventory]);
 
   const handleExecutiveSummary = async () => {
@@ -658,7 +794,7 @@ const BigPicture = ({ inventory }) => {
 
       {/* Top Stats - Balanced Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Cash in Stock" value={`£${stats.totalStockVal.toFixed(0)}`} subtext="Money sitting on shelves" />
+        <StatCard title="Cash in Stock" value={`£${stats.totalStockVal.toFixed(0)}`} subtext="Money sitting on shelves" color="stone" />
         <StatCard title="Sales (30 Days)" value={`£${stats.totalSalesVal.toFixed(0)}`} subtext="Money coming in" trend="up" />
         <StatCard title="Weeks of Stock" value={`${stats.weeksCover.toFixed(1)}`} subtext="Aim for 10-12 weeks" trend={stats.weeksCover > 16 ? "down" : "up"} />
         <StatCard title="Avg Profit Margin" value="52%" subtext="Aim for 50%+" trend="up" />
@@ -683,6 +819,7 @@ const BigPicture = ({ inventory }) => {
                   <th className="text-right py-3 font-semibold">Sales (£)</th>
                   <th className="text-right py-3 font-semibold">Stock Value (£)</th>
                   <th className="text-right py-3 font-semibold">Stock Turn</th>
+                  <th className="text-right py-3 font-semibold">Target Stock</th>
                   <th className="text-right py-3 font-semibold pr-2">Margin</th>
                 </tr>
               </thead>
@@ -693,6 +830,7 @@ const BigPicture = ({ inventory }) => {
                     <td className="py-4 text-right font-bold text-[#778472]">£{cat.sales.toFixed(0)}</td>
                     <td className="py-4 text-right text-[#071013]/60">£{cat.stock.toFixed(0)}</td>
                     <td className="py-4 text-right text-[#071013]/60">{(cat.sales / (cat.stock || 1)).toFixed(1)}</td>
+                    <td className="py-4 text-right text-[#E9AD5D] font-bold">£{cat.targetStock.toFixed(0)}</td>
                     <td className="py-4 text-right font-bold text-[#778472] pr-2">{cat.avgMargin.toFixed(0)}%</td>
                   </tr>
                 ))}
@@ -711,14 +849,17 @@ const BigPicture = ({ inventory }) => {
             <p className="text-[#071013]/60 text-xs mt-1">Can I afford new stock?</p>
           </div>
           <div className="p-8 flex-1 flex flex-col justify-center items-center text-center">
-            <div className="w-40 h-40 rounded-full border-8 border-[#F9EFDD] flex items-center justify-center mb-6 bg-white shadow-sm">
-              <span className="text-3xl font-extrabold text-[#778472] tracking-tight">£4.2k</span>
+            <div className="w-40 h-40 rounded-full border-8 border-[#F9EFDD] flex items-center justify-center mb-6 bg-white shadow-inner">
+              <span className="text-3xl font-extrabold text-[#778472] tracking-tight">£{budgetData.budget.toLocaleString()}</span>
             </div>
-            <h4 className="text-[#071013] font-bold text-lg mb-2">Yes, you have budget.</h4>
-            <p className="text-[#071013]/70 text-sm leading-relaxed max-w-xs">
-              Based on your current sales and stock levels, you can safely spend up to <strong>£4,200</strong> this month on new stock without overfilling your stock room.
+            <h4 className="text-stone-900 font-bold text-lg mb-2">{budgetData.budget > 0 ? "Yes, you have budget." : "Hold off buying."}</h4>
+            <p className="text-stone-500 text-sm leading-relaxed max-w-xs">
+              Based on your current sales and stock levels, you can safely spend up to <strong>£{budgetData.budget.toLocaleString()}</strong> this month on new stock without overfilling your stock room.
             </p>
-            <button className="mt-8 px-4 py-2 bg-[#F9EFDD] text-[#778472] rounded-lg text-xs font-bold uppercase tracking-wide hover:bg-[#E9AD5D]/20 transition-colors">
+            <button 
+              onClick={() => setBudgetModalOpen(true)}
+              className="mt-8 px-4 py-2 bg-[#F9EFDD] text-[#778472] rounded-lg text-xs font-bold uppercase tracking-wide hover:bg-[#E9AD5D]/20 transition-colors"
+            >
               See Calculation
             </button>
           </div>
@@ -731,6 +872,12 @@ const BigPicture = ({ inventory }) => {
         advice={aiAdvice} 
         isLoading={aiLoading} 
         title="Shop Health Check"
+      />
+      
+      <BudgetModal 
+        isOpen={budgetModalOpen}
+        onClose={() => setBudgetModalOpen(false)}
+        data={budgetData}
       />
     </div>
   );
@@ -794,7 +941,7 @@ const WeeklyFocus = ({ inventory }) => {
     setLoading(true);
 
     let prompt = "";
-    if (action.type === 'review') { // MARGIN CHECK
+    if (action.type === 'review') { // MARGIN CHECK - NEW FEATURE
         prompt = `Write a polite but firm email to my supplier for ${action.itemData.supplier}.
         Context: I buy ${action.itemData.name} from them at £${action.itemData.cost}. I sell it at £${action.itemData.rrp}.
         The margin is too low (${((action.itemData.rrp/1.2 - action.itemData.cost)/(action.itemData.rrp/1.2)*100).toFixed(0)}%).
@@ -969,6 +1116,7 @@ const App = () => {
   const [activeTab, setActiveTab] = useState('bigpicture');
   const [inventory, setInventory] = useState(INITIAL_INVENTORY);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [globalChatOpen, setGlobalChatOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-[#F9EFDD] flex text-[#071013] font-sans selection:bg-[#E9AD5D] selection:text-white">
@@ -1066,9 +1214,9 @@ const App = () => {
         
         {/* Persistent AI Chat Button */}
         <div className="fixed bottom-6 right-6 z-40">
-           {!isChatOpen && (
+           {!globalChatOpen && (
              <button 
-               onClick={() => setIsChatOpen(true)}
+               onClick={() => setGlobalChatOpen(true)}
                className="flex items-center gap-2 px-6 py-3 bg-[#778472] hover:bg-[#5f6a5a] text-white rounded-full shadow-xl transition-all hover:scale-105 font-bold font-['Caveat'] text-lg border-2 border-[#F9EFDD]"
              >
                <MessageSquare size={22} className="text-[#E9AD5D]" />
@@ -1076,7 +1224,7 @@ const App = () => {
              </button>
            )}
         </div>
-        <GlobalChatbot isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+        <GlobalChatbot isOpen={globalChatOpen} onClose={() => setGlobalChatOpen(false)} />
 
       </main>
     </div>
