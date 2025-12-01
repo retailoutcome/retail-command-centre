@@ -32,7 +32,7 @@ import {
 } from 'lucide-react';
 
 // --- Gemini API Setup ---
-const apiKey = ""; // API Key injected at runtime
+const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
 
 const callGemini = async (prompt, contextData, systemInstructionOverride = null) => {
   const defaultSystemPrompt = `You are Keith J Lockwood, author of 'The Reluctant Retailer'. 
