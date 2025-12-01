@@ -329,7 +329,7 @@ const BudgetModal = ({ isOpen, onClose, data }) => {
              <div className="bg-[#F9EFDD]/20 p-2 rounded-full">
                 <Calculator size={20} className="text-[#E9AD5D]" />
              </div>
-             <h3 className="font-bold text-xl font-['Caveat']">Buying Budget Breakdown</h3>
+             <h3 className="font-bold text-xl font-['Caveat']">Buying Budget</h3>
           </div>
           <button onClick={onClose} className="text-[#F9EFDD]/70 hover:text-[#F9EFDD] transition-colors">
             <X size={24} />
@@ -337,26 +337,26 @@ const BudgetModal = ({ isOpen, onClose, data }) => {
         </div>
         <div className="p-6 space-y-6 bg-white">
            <div className="bg-[#F9EFDD]/30 p-4 rounded-xl border border-[#778472]/10 text-sm text-[#071013]/70 italic">
-             "Target Stock represents the ideal inventory level for 10 weeks of sales. Your Buying Budget is the gap between that goal and what you currently hold."
+             "This calculation helps you buy enough stock to last 10 weeks without overfilling your stock room."
            </div>
            
            <div className="space-y-4">
               <div className="flex justify-between items-center pb-2 border-b border-[#F9EFDD]">
-                 <span className="text-[#071013]/60 font-medium">Ideal Stock (The Goal)</span>
+                 <span className="text-[#071013]/60 font-medium">Target Stock Level (10wks)</span>
                  <span className="text-[#071013] font-bold">£{targetStock.toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-center pb-2 border-b border-[#F9EFDD]">
-                 <span className="text-[#071013]/60 font-medium">Current Stock (Actual)</span>
+                 <span className="text-[#071013]/60 font-medium">Current Stock (Cost)</span>
                  <span className="text-[#D12323] font-bold">- £{currentStock.toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-center pt-2">
-                 <span className="text-[#778472] font-extrabold text-lg">Open to Buy (Budget)</span>
+                 <span className="text-[#778472] font-extrabold text-lg">Safe to Spend</span>
                  <span className="text-[#778472] font-extrabold text-xl">£{budget.toLocaleString()}</span>
               </div>
            </div>
 
            <div className="text-xs text-[#071013]/40 text-center">
-             Calculated using your average weekly sales volume.
+             Based on your average weekly sales at cost price.
            </div>
         </div>
         <div className="p-4 border-t border-[#F9EFDD] bg-[#F9EFDD]/30 rounded-b-2xl">
@@ -558,10 +558,10 @@ const StockRoom = ({ inventory, setInventory }) => {
     return ((exVat - cost) / exVat) * 100;
   };
 
-  // Helper: Calculate Target Stock (10 weeks cover) based on last 30d sales (Units)
+  // Helper: Calculate Target Stock (10 weeks cover) based on last 30d sales
   const getTargetStock = (sales30d) => {
     const weeklySales = sales30d / 4;
-    return Math.ceil(weeklySales * 10); // 10 weeks cover in units
+    return Math.ceil(weeklySales * 10); // 10 weeks cover
   };
 
   return (
@@ -662,7 +662,7 @@ const StockRoom = ({ inventory, setInventory }) => {
               <td className="px-6 py-3 text-center text-[#071013]/30">-</td>
               <td className="px-6 py-3 text-right"><input type="number" placeholder="0" className="w-16 p-2 border border-[#E9AD5D]/20 rounded-lg text-right" value={newItem.stock} onChange={e => setNewItem({...newItem, stock: e.target.value})} /></td>
               <td className="px-6 py-3 text-right"><input type="number" placeholder="0" className="w-16 p-2 border border-[#E9AD5D]/20 rounded-lg text-right" value={newItem.sales_last_month} onChange={e => setNewItem({...newItem, sales_last_month: e.target.value})} /></td>
-              <td className="px-6 py-3 text-center">Wait...</td>
+              <td className="px-6 py-3 text-center">-</td>
               <td className="px-6 py-3 text-center">
                 <button onClick={handleAddItem} className="bg-[#778472] text-[#F9EFDD] p-2 rounded-lg hover:bg-[#5f6a5a] shadow-sm transition-all"><Plus size={20} /></button>
               </td>
@@ -814,7 +814,7 @@ const BigPicture = ({ inventory }) => {
           <div className="p-6 flex-1">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-xs text-[#071013]/50 uppercase border-b border-[#F9EFDD]">
+                <tr className="text-xs text-stone-400 uppercase border-b border-stone-100">
                   <th className="text-left py-3 font-semibold pl-2">Category</th>
                   <th className="text-right py-3 font-semibold">Sales (£)</th>
                   <th className="text-right py-3 font-semibold">Stock Value (£)</th>
@@ -849,8 +849,8 @@ const BigPicture = ({ inventory }) => {
             <p className="text-[#071013]/60 text-xs mt-1">Can I afford new stock?</p>
           </div>
           <div className="p-8 flex-1 flex flex-col justify-center items-center text-center">
-            <div className="w-40 h-40 rounded-full border-8 border-[#F9EFDD] flex items-center justify-center mb-6 bg-white shadow-inner">
-              <span className="text-3xl font-extrabold text-[#778472] tracking-tight">£{budgetData.budget.toLocaleString()}</span>
+            <div className="w-40 h-40 rounded-full border-8 border-emerald-50 flex items-center justify-center mb-6 bg-white shadow-inner">
+              <span className="text-3xl font-extrabold text-emerald-600 tracking-tight">£{budgetData.budget.toLocaleString()}</span>
             </div>
             <h4 className="text-stone-900 font-bold text-lg mb-2">{budgetData.budget > 0 ? "Yes, you have budget." : "Hold off buying."}</h4>
             <p className="text-stone-500 text-sm leading-relaxed max-w-xs">
@@ -858,7 +858,7 @@ const BigPicture = ({ inventory }) => {
             </p>
             <button 
               onClick={() => setBudgetModalOpen(true)}
-              className="mt-8 px-4 py-2 bg-[#F9EFDD] text-[#778472] rounded-lg text-xs font-bold uppercase tracking-wide hover:bg-[#E9AD5D]/20 transition-colors"
+              className="mt-8 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-bold uppercase tracking-wide hover:bg-emerald-100 transition-colors"
             >
               See Calculation
             </button>
@@ -960,20 +960,20 @@ const WeeklyFocus = ({ inventory }) => {
   };
 
   return (
-    <div className="h-full overflow-auto pr-2 pb-20 font-['Poppins']">
-      <div className="mb-6 bg-white p-6 rounded-xl border border-[#E9AD5D]/30 shadow-sm">
-        <h2 className="font-bold text-[#778472] text-2xl flex items-center gap-2 font-['Caveat']">
-           <ListTodo size={28} />
+    <div className="h-full overflow-auto pr-2 pb-20">
+      <div className="mb-6 bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
+        <h2 className="font-bold text-stone-800 text-xl flex items-center gap-2">
+           <ListTodo size={24} className="text-indigo-600" />
            My Weekly Focus
         </h2>
-        <p className="text-[#071013]/70 text-sm mt-2 max-w-2xl">
+        <p className="text-stone-500 text-sm mt-2 max-w-2xl">
           Don't get overwhelmed. These are the few things you can do this week to improve your cash flow and keep customers happy.
         </p>
       </div>
 
       <div className="space-y-6">
         {actions.length === 0 && (
-          <div className="p-12 text-center text-[#071013]/40 bg-[#F9EFDD]/30 rounded-2xl border border-dashed border-[#778472]/20">
+          <div className="p-12 text-center text-stone-400 bg-stone-50 rounded-2xl border border-dashed border-stone-200">
             <HeartHandshake className="mx-auto mb-4 opacity-50" size={48} />
             <p className="text-lg font-medium">Everything is running smoothly!</p>
             <p className="text-sm mt-2">Go spend some time on the shop floor with your customers.</p>
