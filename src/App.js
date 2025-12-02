@@ -43,7 +43,7 @@ const callGemini = async (prompt, contextData, systemInstructionOverride = null)
   
   **CRITICAL INSTRUCTIONS:**
   1. **Language:** ALWAYS use British English spelling (e.g., colour, behaviour, organise, centre, programme).
-  2. **Formatting:** - Use **Markdown Tables** for any data comparisons or lists of figures.
+  2. **Formatting:** - Use **Markdown Tables** for ANY data comparisons or lists of figures. Ensure columns are separated by pipes (|).
      - Use **double asterisks** to bold key metrics and headings.
      - Use standard bullet points for lists.
   3. **Tone:** Warm, encouraging, plain English, and jargon-free.
@@ -66,12 +66,6 @@ const callGemini = async (prompt, contextData, systemInstructionOverride = null)
   };
 
   try {
-    // Check if API key is present before making the call
-    if (!apiKey) {
-        console.warn("API Key is missing. Please check REACT_APP_GEMINI_API_KEY in Vercel settings.");
-        return "I'm having a spot of bother connecting to my brain right now. Please check your API Key settings.";
-    }
-
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`,
       {
@@ -80,17 +74,15 @@ const callGemini = async (prompt, contextData, systemInstructionOverride = null)
         body: JSON.stringify(payload)
       }
     );
-    
     const data = await response.json();
     
     if (!response.ok) {
-         console.error("Gemini API Error:", data);
          return "I'm having a spot of bother connecting to my brain right now. Please check your API Key settings.";
     }
 
     return data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm having a spot of bother thinking right now. Ask me again in a moment.";
   } catch (error) {
-    console.error("Network Error:", error);
+    console.error("AI Error:", error);
     return "I'm having trouble connecting. Please check your internet.";
   }
 };
@@ -106,7 +98,7 @@ const INITIAL_INVENTORY = [
 
 // --- Helper Components ---
 
-// Advanced Text Renderer: Handles Bold, Lists, and Markdown Tables
+// Advanced Text Renderer: Handles Bold, Lists, and Markdown Tables Robustly
 const FormattedText = ({ text }) => {
   if (!text) return null;
 
@@ -117,7 +109,8 @@ const FormattedText = ({ text }) => {
 
   lines.forEach((line) => {
     const trimmed = line.trim();
-    if (trimmed.startsWith('|')) {
+    // Check if line looks like a table row (starts and ends with | or contains multiple |)
+    if (trimmed.startsWith('|') || (trimmed.split('|').length > 2)) {
       currentTable.push(trimmed);
     } else {
       if (currentTable.length > 0) {
@@ -136,17 +129,24 @@ const FormattedText = ({ text }) => {
       {blocks.map((block, idx) => {
         if (block.type === 'table') {
           // Parse Table
+          // Filter out empty rows and clean up pipes
           const rows = block.content.map(row => 
-            row.split('|').filter(cell => cell.trim() !== '').map(cell => cell.trim())
+            row.split('|')
+               .map(cell => cell.trim())
+               .filter(cell => cell !== '') // Remove empty cells from leading/trailing pipes
           ).filter(row => row.length > 0);
           
-          // Filter out separator lines (e.g. ---|---)
-          const cleanRows = rows.filter(row => !row[0].match(/^[-:]+$/));
+          // Robustly filter out separator lines (e.g. ---|--- or :---:)
+          const cleanRows = rows.filter(row => {
+             // Check if the row consists mostly of dashes/colons
+             const rowString = row.join('');
+             return !/^[-:|]+$/.test(rowString); 
+          });
 
           if (cleanRows.length === 0) return null;
 
           return (
-            <div key={idx} className="overflow-x-auto my-4 rounded-xl border border-[#E9AD5D]/30 shadow-sm">
+            <div key={idx} className="overflow-x-auto my-4 rounded-xl border border-[#E9AD5D]/30 shadow-sm bg-white">
               <table className="min-w-full divide-y divide-[#F9EFDD]">
                 <thead className="bg-[#F9EFDD]">
                   <tr>
@@ -157,7 +157,7 @@ const FormattedText = ({ text }) => {
                     ))}
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-stone-100">
+                <tbody className="divide-y divide-stone-100">
                   {cleanRows.slice(1).map((row, rIdx) => (
                     <tr key={rIdx} className="hover:bg-[#F9EFDD]/20 transition-colors">
                       {row.map((cell, cIdx) => (
@@ -827,7 +827,7 @@ const BigPicture = ({ inventory }) => {
           <div className="p-6 flex-1">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-xs text-stone-400 uppercase border-b border-stone-100">
+                <tr className="text-xs text-[#071013]/50 uppercase border-b border-[#F9EFDD]">
                   <th className="text-left py-3 font-semibold pl-2">Category</th>
                   <th className="text-right py-3 font-semibold">Sales (£)</th>
                   <th className="text-right py-3 font-semibold">Stock Value (£)</th>
