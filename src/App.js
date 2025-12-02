@@ -37,6 +37,9 @@ const apiKey = typeof process !== 'undefined' && process.env && process.env.REAC
   ? process.env.REACT_APP_GEMINI_API_KEY 
   : "";
 
+// DEBUGGING: Check if API key is loaded (Prints to Browser Console)
+console.log("API Key Status:", apiKey ? "Loaded Successfully (Starts with " + apiKey.substring(0, 4) + "...)" : "MISSING / UNDEFINED");
+
 const callGemini = async (prompt, contextData, systemInstructionOverride = null) => {
   const defaultSystemPrompt = `You are Keith J Lockwood, author of 'The Reluctant Retailer'. 
   You are a supportive mentor to independent shopkeepers in the UK.
@@ -77,12 +80,13 @@ const callGemini = async (prompt, contextData, systemInstructionOverride = null)
     const data = await response.json();
     
     if (!response.ok) {
+         console.error("Gemini API Error Details:", data);
          return "I'm having a spot of bother connecting to my brain right now. Please check your API Key settings.";
     }
 
     return data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm having a spot of bother thinking right now. Ask me again in a moment.";
   } catch (error) {
-    console.error("AI Error:", error);
+    console.error("Network Error:", error);
     return "I'm having trouble connecting. Please check your internet.";
   }
 };
@@ -324,6 +328,42 @@ const GlobalChatbot = ({ isOpen, onClose }) => {
   );
 };
 
+const MarketingModal = ({ isOpen, onClose, content, isLoading, productName }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 bg-[#071013]/60 z-50 flex items-center justify-center backdrop-blur-sm p-4 animate-in fade-in duration-200 font-['Poppins']">
+      <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[80vh] animate-in slide-in-from-bottom-4 duration-300 border-2 border-[#E9AD5D]">
+        <div className="p-5 border-b border-[#F9EFDD] flex justify-between items-center bg-[#F9EFDD]">
+          <div className="flex items-center gap-3">
+            <div className="bg-[#E9AD5D]/20 p-2 rounded-full">
+               <Megaphone size={20} className="text-[#E9AD5D]" />
+            </div>
+            <div>
+              <h3 className="font-bold text-xl font-['Caveat'] text-[#071013]">Magic Marketing</h3>
+              <p className="text-xs text-[#071013]/60 uppercase tracking-wider">For: {productName}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-[#071013]/50 hover:text-[#071013] transition-colors">
+            <X size={24} />
+          </button>
+        </div>
+        <div className="p-6 overflow-y-auto bg-white">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-12 space-y-4">
+              <Loader2 size={40} className="animate-spin text-[#E9AD5D]" />
+              <p className="text-sm text-[#071013]/60 font-medium animate-pulse italic">Writing your post...</p>
+            </div>
+          ) : (
+            <div className="prose prose-stone prose-sm leading-relaxed whitespace-pre-wrap">
+              <FormattedText text={content} />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const BudgetModal = ({ isOpen, onClose, data }) => {
   if (!isOpen) return null;
   
@@ -371,42 +411,6 @@ const BudgetModal = ({ isOpen, onClose, data }) => {
            <button onClick={onClose} className="w-full py-2 bg-white border border-[#778472]/20 rounded-lg text-[#778472] font-bold hover:bg-[#F9EFDD] transition-colors">
              Close
            </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const MarketingModal = ({ isOpen, onClose, content, isLoading, productName }) => {
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 bg-[#071013]/60 z-50 flex items-center justify-center backdrop-blur-sm p-4 animate-in fade-in duration-200 font-['Poppins']">
-      <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[80vh] animate-in slide-in-from-bottom-4 duration-300 border-2 border-[#E9AD5D]">
-        <div className="p-5 border-b border-[#F9EFDD] flex justify-between items-center bg-[#F9EFDD]">
-          <div className="flex items-center gap-3">
-            <div className="bg-[#E9AD5D]/20 p-2 rounded-full">
-               <Megaphone size={20} className="text-[#E9AD5D]" />
-            </div>
-            <div>
-              <h3 className="font-bold text-xl font-['Caveat'] text-[#071013]">Magic Marketing</h3>
-              <p className="text-xs text-[#071013]/60 uppercase tracking-wider">For: {productName}</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="text-[#071013]/50 hover:text-[#071013] transition-colors">
-            <X size={24} />
-          </button>
-        </div>
-        <div className="p-6 overflow-y-auto bg-white">
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-12 space-y-4">
-              <Loader2 size={40} className="animate-spin text-[#E9AD5D]" />
-              <p className="text-sm text-[#071013]/60 font-medium animate-pulse italic">Writing your post...</p>
-            </div>
-          ) : (
-            <div className="prose prose-stone prose-sm leading-relaxed whitespace-pre-wrap">
-              <FormattedText text={content} />
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -827,7 +831,7 @@ const BigPicture = ({ inventory }) => {
           <div className="p-6 flex-1">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-xs text-[#071013]/50 uppercase border-b border-[#F9EFDD]">
+                <tr className="text-xs text-stone-400 uppercase border-b border-stone-100">
                   <th className="text-left py-3 font-semibold pl-2">Category</th>
                   <th className="text-right py-3 font-semibold">Sales (£)</th>
                   <th className="text-right py-3 font-semibold">Stock Value (£)</th>
@@ -1006,16 +1010,16 @@ const WeeklyFocus = ({ inventory }) => {
                   }`}>
                     {action.type === 'clearance' ? 'Cash Flow' : action.type === 'restock' ? 'Best Seller' : 'Profit'}
                   </span>
-                  <h3 className="font-bold text-[#071013] text-lg">{action.title}</h3>
+                  <h3 className="font-bold text-stone-800 text-lg">{action.title}</h3>
                 </div>
-                <p className="text-[#071013]/70 text-sm leading-relaxed">{action.desc}</p>
+                <p className="text-stone-600 text-sm leading-relaxed">{action.desc}</p>
               </div>
               
               <button 
                 onClick={() => handleAskAi(action)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[#F9EFDD] text-[#778472] rounded-lg border border-[#E9AD5D]/30 hover:bg-[#778472] hover:text-[#F9EFDD] transition-all font-bold text-sm whitespace-nowrap"
+                className="flex items-center gap-2 px-5 py-2.5 bg-stone-50 text-stone-700 rounded-lg border border-stone-200 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 transition-all font-bold text-sm whitespace-nowrap"
               >
-                {action.type === 'review' ? <Mail size={16} /> : <Sparkles size={16} />}
+                {action.type === 'review' ? <Mail size={16} className="text-indigo-500" /> : <Sparkles size={16} className="text-indigo-500" />}
                 {action.type === 'review' ? 'Negotiate' : 'Get Advice'}
               </button>
             </div>
@@ -1036,79 +1040,79 @@ const WeeklyFocus = ({ inventory }) => {
 
 // 4. SYSTEM SETUP VIEW
 const SystemSetup = () => (
-  <div className="h-full overflow-auto bg-white rounded-xl border border-[#E9AD5D]/30 p-8 pb-20 font-['Poppins']">
+  <div className="h-full overflow-auto bg-white rounded-xl border border-stone-200 p-8 pb-20">
     <div className="max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <div className="p-3 bg-[#F9EFDD] rounded-xl text-[#778472]">
+        <div className="p-3 bg-purple-100 rounded-xl text-purple-700">
            <Settings size={24} />
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-[#071013]">System Setup Guide</h2>
-          <p className="text-[#071013]/60">How to build this tool in Google Sheets for free.</p>
+          <h2 className="text-2xl font-bold text-stone-900">System Setup Guide</h2>
+          <p className="text-stone-500">How to build this tool in Google Sheets for free.</p>
         </div>
       </div>
       
       <div className="space-y-8">
-        <div className="bg-[#F9EFDD]/20 p-6 rounded-xl border border-[#778472]/20">
-          <div className="flex items-center gap-2 mb-4 text-[#778472] font-bold uppercase text-xs tracking-wider">
+        <div className="bg-stone-50 p-6 rounded-xl border border-stone-200">
+          <div className="flex items-center gap-2 mb-4 text-green-700 font-bold uppercase text-xs tracking-wider">
             <FileSpreadsheet size={16} />
             Step 1: The Stock Room (Inventory)
           </div>
-          <h3 className="font-bold text-[#071013] mb-2">Create a tab named "Stock_Room"</h3>
-          <p className="text-sm text-[#071013]/70 mb-4">
+          <h3 className="font-bold text-stone-900 mb-2">Create a tab named "Stock_Room"</h3>
+          <p className="text-sm text-stone-600 mb-4">
             This is your master list. Add these exact headers in Row 1.
           </p>
-          <div className="grid grid-cols-3 gap-2 text-xs font-mono bg-white p-4 rounded-lg border border-[#778472]/10 text-[#071013]/80">
-             <div className="p-2 bg-[#F9EFDD] rounded">A: SKU</div>
-             <div className="p-2 bg-[#F9EFDD] rounded">B: Product Name</div>
-             <div className="p-2 bg-[#F9EFDD] rounded">C: Category</div>
-             <div className="p-2 bg-[#F9EFDD] rounded">D: Supplier</div>
-             <div className="p-2 bg-[#F9EFDD] rounded">E: Cost Price</div>
-             <div className="p-2 bg-[#F9EFDD] rounded">F: Selling Price</div>
-             <div className="p-2 bg-[#F9EFDD] rounded">G: In Stock</div>
-             <div className="p-2 bg-[#F9EFDD] rounded">H: Sold (30d)</div>
+          <div className="grid grid-cols-3 gap-2 text-xs font-mono bg-white p-4 rounded-lg border border-stone-200 text-stone-600">
+             <div className="p-2 bg-stone-50 rounded">A: SKU</div>
+             <div className="p-2 bg-stone-50 rounded">B: Product Name</div>
+             <div className="p-2 bg-stone-50 rounded">C: Category</div>
+             <div className="p-2 bg-stone-50 rounded">D: Supplier</div>
+             <div className="p-2 bg-stone-50 rounded">E: Cost Price</div>
+             <div className="p-2 bg-stone-50 rounded">F: Selling Price</div>
+             <div className="p-2 bg-stone-50 rounded">G: In Stock</div>
+             <div className="p-2 bg-stone-50 rounded">H: Sold (30d)</div>
           </div>
         </div>
 
-        <div className="bg-[#F9EFDD]/20 p-6 rounded-xl border border-[#778472]/20">
-          <div className="flex items-center gap-2 mb-4 text-[#778472] font-bold uppercase text-xs tracking-wider">
+        <div className="bg-stone-50 p-6 rounded-xl border border-stone-200">
+          <div className="flex items-center gap-2 mb-4 text-blue-700 font-bold uppercase text-xs tracking-wider">
             <UploadCloud size={16} />
             Step 2: POS Data Import (Optional)
           </div>
-          <h3 className="font-bold text-[#071013] mb-2">Create a tab named "POS_Import"</h3>
-          <p className="text-sm text-[#071013]/70 mb-4">
+          <h3 className="font-bold text-stone-900 mb-2">Create a tab named "POS_Import"</h3>
+          <p className="text-sm text-stone-600 mb-4">
             This is where you paste your raw sales data export from Shopify, Lightspeed, or Zettle. 
             The main dashboard will read from here to show historical trends.
           </p>
-          <div className="bg-white p-4 rounded-lg border border-[#778472]/10 text-xs font-mono text-[#071013]/80 break-all">
+          <div className="bg-white p-4 rounded-lg border border-stone-200 text-xs font-mono text-blue-600 break-all">
             (No formula needed here - just paste your CSV export starting at cell A1)
           </div>
         </div>
 
-        <div className="bg-[#F9EFDD]/20 p-6 rounded-xl border border-[#778472]/20">
-          <div className="flex items-center gap-2 mb-4 text-[#778472] font-bold uppercase text-xs tracking-wider">
+        <div className="bg-stone-50 p-6 rounded-xl border border-stone-200">
+          <div className="flex items-center gap-2 mb-4 text-blue-700 font-bold uppercase text-xs tracking-wider">
             <Calculator size={16} />
             Step 3: The Big Picture (Calculations)
           </div>
-          <h3 className="font-bold text-[#071013] mb-2">Create a tab named "Big_Picture_Calc"</h3>
-          <p className="text-sm text-[#071013]/70 mb-4">
+          <h3 className="font-bold text-stone-900 mb-2">Create a tab named "Big_Picture_Calc"</h3>
+          <p className="text-sm text-stone-600 mb-4">
             This formula automatically groups your sales by Category for the dashboard. Paste it in cell <strong>A1</strong>.
           </p>
-          <div className="bg-white p-4 rounded-lg border border-[#778472]/10 text-xs font-mono text-[#778472] break-all">
+          <div className="bg-white p-4 rounded-lg border border-stone-200 text-xs font-mono text-blue-600 break-all">
             =QUERY(Stock_Room!A:H, "Select C, Sum(H), Sum(G) Group by C Label Sum(H) 'Total Sales', Sum(G) 'Total Stock'")
           </div>
         </div>
 
-        <div className="bg-[#F9EFDD]/20 p-6 rounded-xl border border-[#778472]/20">
-          <div className="flex items-center gap-2 mb-4 text-[#778472] font-bold uppercase text-xs tracking-wider">
+        <div className="bg-stone-50 p-6 rounded-xl border border-stone-200">
+          <div className="flex items-center gap-2 mb-4 text-purple-700 font-bold uppercase text-xs tracking-wider">
             <ListTodo size={16} />
             Step 4: Weekly Focus (Automation)
           </div>
-          <h3 className="font-bold text-[#071013] mb-2">Automate your "To-Do" List</h3>
-          <p className="text-sm text-[#071013]/70 mb-4">
+          <h3 className="font-bold text-stone-900 mb-2">Automate your "To-Do" List</h3>
+          <p className="text-sm text-stone-600 mb-4">
             Go back to your <strong>Stock_Room</strong> tab. In cell <strong>I2</strong> (Column I, Row 2), paste this formula and drag it down. It will flag items that need attention.
           </p>
-          <div className="bg-white p-4 rounded-lg border border-[#778472]/10 text-xs font-mono text-[#778472]">
+          <div className="bg-white p-4 rounded-lg border border-stone-200 text-xs font-mono text-purple-600">
             {/* Fixed the escape character issue here */}
             =IFS(<br/>
              &nbsp;&nbsp;AND(G2&gt;20, H2&lt;3), "Clearance Needed",<br/>
@@ -1132,23 +1136,18 @@ const App = () => {
   const [globalChatOpen, setGlobalChatOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#F9EFDD] flex text-[#071013] font-sans selection:bg-[#E9AD5D] selection:text-white">
-      {/* Fonts Injection */}
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Poppins:wght@300;400;500;600;700&display=swap');
-      `}</style>
-
+    <div className="min-h-screen bg-stone-50 flex text-stone-900 font-sans selection:bg-indigo-100">
       {/* Sidebar Navigation */}
-      <aside className="w-64 bg-[#778472] text-[#F9EFDD] flex flex-col fixed h-full z-20 shadow-xl font-['Poppins']">
-        <div className="p-8 pb-4 border-b border-[#F9EFDD]/20">
-          <h1 className="text-2xl font-bold tracking-tight text-white font-['Caveat']">Retail Command<br/><span className="text-[#E9AD5D]">Centre</span></h1>
-          <p className="text-xs text-[#F9EFDD]/70 mt-2 font-medium">Independent Retailer Edition</p>
+      <aside className="w-64 bg-stone-900 text-stone-200 flex flex-col fixed h-full z-20 shadow-xl">
+        <div className="p-8 pb-4 border-b border-stone-800">
+          <h1 className="text-2xl font-bold tracking-tight text-white">Retail Command<br/><span className="text-indigo-400">Centre</span></h1>
+          <p className="text-xs text-stone-500 mt-2 font-medium">Independent Retailer Edition</p>
         </div>
         
         <nav className="flex-1 px-4 py-6 space-y-2">
           <button 
             onClick={() => setActiveTab('bigpicture')}
-            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'bigpicture' ? 'bg-[#F9EFDD] text-[#778472] shadow-lg transform scale-105' : 'text-[#F9EFDD]/70 hover:bg-[#F9EFDD]/10 hover:text-white'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'bigpicture' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20 transform scale-105' : 'text-stone-400 hover:bg-stone-800 hover:text-white'}`}
           >
             <LayoutDashboard size={20} />
             The Big Picture
@@ -1156,7 +1155,7 @@ const App = () => {
 
           <button 
             onClick={() => setActiveTab('focus')}
-            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'focus' ? 'bg-[#F9EFDD] text-[#778472] shadow-lg transform scale-105' : 'text-[#F9EFDD]/70 hover:bg-[#F9EFDD]/10 hover:text-white'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'focus' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20 transform scale-105' : 'text-stone-400 hover:bg-stone-800 hover:text-white'}`}
           >
             <ListTodo size={20} />
             Weekly Focus
@@ -1164,16 +1163,16 @@ const App = () => {
 
           <button 
             onClick={() => setActiveTab('stock')}
-            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'stock' ? 'bg-[#F9EFDD] text-[#778472] shadow-lg transform scale-105' : 'text-[#F9EFDD]/70 hover:bg-[#F9EFDD]/10 hover:text-white'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'stock' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20 transform scale-105' : 'text-stone-400 hover:bg-stone-800 hover:text-white'}`}
           >
             <Store size={20} />
             The Stock Room
           </button>
           
-          <div className="pt-6 mt-6 border-t border-[#F9EFDD]/20">
+          <div className="pt-6 mt-6 border-t border-stone-800">
             <button 
               onClick={() => setActiveTab('setup')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${activeTab === 'setup' ? 'text-[#E9AD5D] bg-[#F9EFDD]/10' : 'text-[#F9EFDD]/70 hover:bg-[#F9EFDD]/10 hover:text-white'}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${activeTab === 'setup' ? 'text-indigo-300 bg-indigo-900/20' : 'text-stone-500 hover:bg-stone-800 hover:text-stone-300'}`}
             >
               <Settings size={20} />
               System Guide
@@ -1181,25 +1180,25 @@ const App = () => {
           </div>
         </nav>
 
-        <div className="p-6 bg-[#071013]/20 m-4 rounded-xl border border-[#F9EFDD]/10">
-          <div className="flex items-start gap-3 text-[#F9EFDD]/80 text-xs leading-relaxed">
-            <HeartHandshake size={24} className="shrink-0 text-[#E9AD5D]" />
+        <div className="p-6 bg-stone-950 m-4 rounded-xl border border-stone-800">
+          <div className="flex items-start gap-3 text-stone-400 text-xs leading-relaxed">
+            <HeartHandshake size={24} className="shrink-0 text-indigo-500" />
             <p>"Retail is detail, but don't forget to look up and smile at the customer."</p>
           </div>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 ml-64 p-8 md:p-12 h-screen overflow-hidden flex flex-col relative bg-[#F9EFDD] font-['Poppins']">
+      <main className="flex-1 ml-64 p-8 md:p-12 h-screen overflow-hidden flex flex-col relative bg-stone-50">
         <header className="flex justify-between items-center mb-8 shrink-0">
           <div>
-             <h2 className="text-3xl font-extrabold text-[#071013] tracking-tight font-['Caveat']">
+             <h2 className="text-3xl font-extrabold text-stone-900 tracking-tight">
               {activeTab === 'stock' && "Manage Your Stock"}
               {activeTab === 'bigpicture' && "Your Shop's Pulse"}
               {activeTab === 'focus' && "This Week's Goals"}
               {activeTab === 'setup' && "Build It Yourself"}
             </h2>
-            <p className="text-[#071013]/70 text-sm mt-1 font-medium">
+            <p className="text-stone-500 text-sm mt-1 font-medium">
                {activeTab === 'stock' && "Keep your inventory accurate to get the best advice."}
                {activeTab === 'bigpicture' && "A clear view of what's selling and what's sticking."}
                {activeTab === 'focus' && "Simple steps to improve your cash flow today."}
@@ -1207,18 +1206,18 @@ const App = () => {
             </p>
           </div>
           
-          <div className="flex items-center gap-3 bg-white p-2 rounded-full shadow-sm border border-[#E9AD5D]/30 px-4">
+          <div className="flex items-center gap-3 bg-white p-2 rounded-full shadow-sm border border-stone-200 px-4">
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-bold text-[#071013]">Keith's Demo Shop</p>
-              <p className="text-[10px] text-[#778472] font-bold uppercase tracking-wider">Live</p>
+              <p className="text-sm font-bold text-stone-900">Keith's Demo Shop</p>
+              <p className="text-[10px] text-green-600 font-bold uppercase tracking-wider">Live</p>
             </div>
-            <div className="h-10 w-10 bg-gradient-to-br from-[#778472] to-[#5f6a5a] rounded-full flex items-center justify-center text-white font-bold shadow-md">
+            <div className="h-10 w-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold shadow-md">
               KS
             </div>
           </div>
         </header>
 
-        <div className="flex-1 overflow-hidden rounded-2xl shadow-sm bg-white border border-[#E9AD5D]/20">
+        <div className="flex-1 overflow-hidden rounded-2xl shadow-sm bg-white border border-stone-200">
            {activeTab === 'stock' && <StockRoom inventory={inventory} setInventory={setInventory} />}
            {activeTab === 'bigpicture' && <BigPicture inventory={inventory} />}
            {activeTab === 'focus' && <WeeklyFocus inventory={inventory} />}
@@ -1230,9 +1229,9 @@ const App = () => {
            {!globalChatOpen && (
              <button 
                onClick={() => setGlobalChatOpen(true)}
-               className="flex items-center gap-2 px-6 py-3 bg-[#778472] hover:bg-[#5f6a5a] text-white rounded-full shadow-xl transition-all hover:scale-105 font-bold font-['Caveat'] text-lg border-2 border-[#F9EFDD]"
+               className="flex items-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-xl transition-all hover:scale-105 font-bold"
              >
-               <MessageSquare size={22} className="text-[#E9AD5D]" />
+               <MessageSquare size={20} />
                Ask The Reluctant Retailer
              </button>
            )}
