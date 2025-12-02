@@ -66,6 +66,12 @@ const callGemini = async (prompt, contextData, systemInstructionOverride = null)
   };
 
   try {
+    // Check if API key is present before making the call
+    if (!apiKey) {
+        console.warn("API Key is missing. Please check REACT_APP_GEMINI_API_KEY in Vercel settings.");
+        return "I'm having a spot of bother connecting to my brain right now. Please check your API Key settings.";
+    }
+
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`,
       {
@@ -74,15 +80,17 @@ const callGemini = async (prompt, contextData, systemInstructionOverride = null)
         body: JSON.stringify(payload)
       }
     );
+    
     const data = await response.json();
     
     if (!response.ok) {
+         console.error("Gemini API Error:", data);
          return "I'm having a spot of bother connecting to my brain right now. Please check your API Key settings.";
     }
 
     return data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm having a spot of bother thinking right now. Ask me again in a moment.";
   } catch (error) {
-    console.error("AI Error:", error);
+    console.error("Network Error:", error);
     return "I'm having trouble connecting. Please check your internet.";
   }
 };
@@ -701,7 +709,6 @@ const BigPicture = ({ inventory }) => {
   }, [inventory]);
 
   // Budget Calculation Logic (Target 10 weeks cover)
-  // Updated to calculate target stock per item, then sum, to match Category Breakdown logic
   const budgetData = useMemo(() => {
     let totalTargetStockVal = 0;
     
@@ -820,7 +827,7 @@ const BigPicture = ({ inventory }) => {
           <div className="p-6 flex-1">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-xs text-[#071013]/50 uppercase border-b border-[#F9EFDD]">
+                <tr className="text-xs text-stone-400 uppercase border-b border-stone-100">
                   <th className="text-left py-3 font-semibold pl-2">Category</th>
                   <th className="text-right py-3 font-semibold">Sales (£)</th>
                   <th className="text-right py-3 font-semibold">Stock Value (£)</th>
