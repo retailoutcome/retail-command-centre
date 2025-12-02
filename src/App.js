@@ -98,11 +98,9 @@ const INITIAL_INVENTORY = [
 
 // --- Helper Components ---
 
-// Advanced Text Renderer: Handles Bold, Lists, and Markdown Tables
 const FormattedText = ({ text }) => {
   if (!text) return null;
 
-  // Split text into blocks to identify tables vs paragraphs
   const lines = text.split('\n');
   const blocks = [];
   let currentTable = [];
@@ -127,12 +125,10 @@ const FormattedText = ({ text }) => {
     <div className="text-sm text-stone-600 leading-relaxed space-y-3 font-['Poppins']">
       {blocks.map((block, idx) => {
         if (block.type === 'table') {
-          // Parse Table
           const rows = block.content.map(row => 
             row.split('|').filter(cell => cell.trim() !== '').map(cell => cell.trim())
           ).filter(row => row.length > 0);
           
-          // Filter out separator lines (e.g. ---|---)
           const cleanRows = rows.filter(row => !row[0].match(/^[-:]+$/));
 
           if (cleanRows.length === 0) return null;
@@ -154,7 +150,6 @@ const FormattedText = ({ text }) => {
                     <tr key={rIdx} className="hover:bg-[#F9EFDD]/20 transition-colors">
                       {row.map((cell, cIdx) => (
                         <td key={cIdx} className="px-4 py-3 text-sm text-[#071013]">
-                           {/* Render bold text inside cells */}
                            {cell.split(/(\*\*.*?\*\*)/g).map((part, pIdx) => 
                               part.startsWith('**') ? <strong key={pIdx} className="text-[#778472]">{part.slice(2, -2)}</strong> : part
                            )}
@@ -167,7 +162,6 @@ const FormattedText = ({ text }) => {
             </div>
           );
         } else {
-          // Parse Text (Bold & Lists)
           const isList = block.content.trim().startsWith('- ') || block.content.trim().startsWith('* ');
           const cleanContent = isList ? block.content.trim().substring(2) : block.content;
           
@@ -558,10 +552,10 @@ const StockRoom = ({ inventory, setInventory }) => {
     return ((exVat - cost) / exVat) * 100;
   };
 
-  // Helper: Calculate Target Stock (10 weeks cover) based on last 30d sales
+  // Helper: Calculate Target Stock (10 weeks cover) based on last 30d sales (Units)
   const getTargetStock = (sales30d) => {
     const weeklySales = sales30d / 4;
-    return Math.ceil(weeklySales * 10); // 10 weeks cover
+    return Math.ceil(weeklySales * 10); // 10 weeks cover in units
   };
 
   return (
@@ -814,7 +808,7 @@ const BigPicture = ({ inventory }) => {
           <div className="p-6 flex-1">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-xs text-stone-400 uppercase border-b border-stone-100">
+                <tr className="text-xs text-[#071013]/50 uppercase border-b border-[#F9EFDD]">
                   <th className="text-left py-3 font-semibold pl-2">Category</th>
                   <th className="text-right py-3 font-semibold">Sales (£)</th>
                   <th className="text-right py-3 font-semibold">Stock Value (£)</th>
@@ -849,8 +843,8 @@ const BigPicture = ({ inventory }) => {
             <p className="text-[#071013]/60 text-xs mt-1">Can I afford new stock?</p>
           </div>
           <div className="p-8 flex-1 flex flex-col justify-center items-center text-center">
-            <div className="w-40 h-40 rounded-full border-8 border-emerald-50 flex items-center justify-center mb-6 bg-white shadow-inner">
-              <span className="text-3xl font-extrabold text-emerald-600 tracking-tight">£{budgetData.budget.toLocaleString()}</span>
+            <div className="w-40 h-40 rounded-full border-8 border-[#F9EFDD] flex items-center justify-center mb-6 bg-white shadow-inner">
+              <span className="text-3xl font-extrabold text-[#778472] tracking-tight">£{budgetData.budget.toLocaleString()}</span>
             </div>
             <h4 className="text-stone-900 font-bold text-lg mb-2">{budgetData.budget > 0 ? "Yes, you have budget." : "Hold off buying."}</h4>
             <p className="text-stone-500 text-sm leading-relaxed max-w-xs">
@@ -858,7 +852,7 @@ const BigPicture = ({ inventory }) => {
             </p>
             <button 
               onClick={() => setBudgetModalOpen(true)}
-              className="mt-8 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-bold uppercase tracking-wide hover:bg-emerald-100 transition-colors"
+              className="mt-8 px-4 py-2 bg-[#F9EFDD] text-[#778472] rounded-lg text-xs font-bold uppercase tracking-wide hover:bg-[#E9AD5D]/20 transition-colors"
             >
               See Calculation
             </button>
@@ -961,7 +955,7 @@ const WeeklyFocus = ({ inventory }) => {
 
   return (
     <div className="h-full overflow-auto pr-2 pb-20">
-      <div className="mb-6 bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
+      <div className="mb-6 bg-white p-6 rounded-xl border border-[#E9AD5D]/30 shadow-sm">
         <h2 className="font-bold text-stone-800 text-xl flex items-center gap-2">
            <ListTodo size={24} className="text-indigo-600" />
            My Weekly Focus
