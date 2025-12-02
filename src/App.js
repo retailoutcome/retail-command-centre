@@ -37,9 +37,6 @@ const apiKey = typeof process !== 'undefined' && process.env && process.env.REAC
   ? process.env.REACT_APP_GEMINI_API_KEY 
   : "";
 
-// DEBUGGING: Check if API key is loaded (Prints to Browser Console)
-console.log("API Key Status:", apiKey ? "Loaded Successfully (Starts with " + apiKey.substring(0, 4) + "...)" : "MISSING / UNDEFINED");
-
 const callGemini = async (prompt, contextData, systemInstructionOverride = null) => {
   const defaultSystemPrompt = `You are Keith J Lockwood, author of 'The Reluctant Retailer'. 
   You are a supportive mentor to independent shopkeepers in the UK.
@@ -80,13 +77,12 @@ const callGemini = async (prompt, contextData, systemInstructionOverride = null)
     const data = await response.json();
     
     if (!response.ok) {
-         console.error("Gemini API Error Details:", data);
          return "I'm having a spot of bother connecting to my brain right now. Please check your API Key settings.";
     }
 
     return data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm having a spot of bother thinking right now. Ask me again in a moment.";
   } catch (error) {
-    console.error("Network Error:", error);
+    console.error("AI Error:", error);
     return "I'm having trouble connecting. Please check your internet.";
   }
 };
@@ -649,7 +645,7 @@ const StockRoom = ({ inventory, setInventory }) => {
                   <td className="px-6 py-4 text-center flex justify-center gap-2">
                     <button 
                       onClick={() => handleGenerateMarketing(item)}
-                      className="p-1.5 bg-[#F9EFDD] text-[#E9AD5D] rounded hover:bg-[#E9AD5D] hover:text-white transition-colors"
+                      className="p-1.5 bg-pink-100 text-pink-600 rounded hover:bg-pink-200 transition-colors"
                       title="Generate Marketing Copy"
                     >
                       <Megaphone size={16} />
@@ -858,7 +854,7 @@ const BigPicture = ({ inventory }) => {
 
         {/* Buying Budget (OTB) */}
         <div className="bg-white rounded-xl border border-[#E9AD5D]/30 shadow-sm overflow-hidden flex flex-col h-full">
-          <div className="p-6 border-b border-[#F9EFDD] bg-[#F9EFDD]/30">
+          <div className="p-6 border-b border-[#F9EFDD] bg-stone-50/50">
             <h3 className="font-bold text-[#778472] text-lg flex items-center gap-2 font-['Poppins']">
               <Calculator size={20} />
               Buying Budget
@@ -1017,9 +1013,9 @@ const WeeklyFocus = ({ inventory }) => {
               
               <button 
                 onClick={() => handleAskAi(action)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-stone-50 text-stone-700 rounded-lg border border-stone-200 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 transition-all font-bold text-sm whitespace-nowrap"
+                className="flex items-center gap-2 px-5 py-2.5 bg-[#F9EFDD] text-[#778472] rounded-lg border border-[#E9AD5D]/30 hover:bg-[#778472] hover:text-[#F9EFDD] transition-all font-bold text-sm whitespace-nowrap"
               >
-                {action.type === 'review' ? <Mail size={16} className="text-indigo-500" /> : <Sparkles size={16} className="text-indigo-500" />}
+                {action.type === 'review' ? <Mail size={16} /> : <Sparkles size={16} />}
                 {action.type === 'review' ? 'Negotiate' : 'Get Advice'}
               </button>
             </div>
@@ -1040,7 +1036,7 @@ const WeeklyFocus = ({ inventory }) => {
 
 // 4. SYSTEM SETUP VIEW
 const SystemSetup = () => (
-  <div className="h-full overflow-auto bg-white rounded-xl border border-stone-200 p-8 pb-20">
+  <div className="h-full overflow-auto bg-white rounded-xl border border-[#E9AD5D]/30 p-8 pb-20 font-['Poppins']">
     <div className="max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <div className="p-3 bg-purple-100 rounded-xl text-purple-700">
@@ -1062,15 +1058,15 @@ const SystemSetup = () => (
           <p className="text-sm text-stone-600 mb-4">
             This is your master list. Add these exact headers in Row 1.
           </p>
-          <div className="grid grid-cols-3 gap-2 text-xs font-mono bg-white p-4 rounded-lg border border-stone-200 text-stone-600">
-             <div className="p-2 bg-stone-50 rounded">A: SKU</div>
-             <div className="p-2 bg-stone-50 rounded">B: Product Name</div>
-             <div className="p-2 bg-stone-50 rounded">C: Category</div>
-             <div className="p-2 bg-stone-50 rounded">D: Supplier</div>
-             <div className="p-2 bg-stone-50 rounded">E: Cost Price</div>
-             <div className="p-2 bg-stone-50 rounded">F: Selling Price</div>
-             <div className="p-2 bg-stone-50 rounded">G: In Stock</div>
-             <div className="p-2 bg-stone-50 rounded">H: Sold (30d)</div>
+          <div className="grid grid-cols-3 gap-2 text-xs font-mono bg-white p-4 rounded-lg border border-[#778472]/10 text-[#071013]/80">
+             <div className="p-2 bg-[#F9EFDD] rounded">A: SKU</div>
+             <div className="p-2 bg-[#F9EFDD] rounded">B: Product Name</div>
+             <div className="p-2 bg-[#F9EFDD] rounded">C: Category</div>
+             <div className="p-2 bg-[#F9EFDD] rounded">D: Supplier</div>
+             <div className="p-2 bg-[#F9EFDD] rounded">E: Cost Price</div>
+             <div className="p-2 bg-[#F9EFDD] rounded">F: Selling Price</div>
+             <div className="p-2 bg-[#F9EFDD] rounded">G: In Stock</div>
+             <div className="p-2 bg-[#F9EFDD] rounded">H: Sold (30d)</div>
           </div>
         </div>
 
@@ -1136,18 +1132,23 @@ const App = () => {
   const [globalChatOpen, setGlobalChatOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-stone-50 flex text-stone-900 font-sans selection:bg-indigo-100">
+    <div className="min-h-screen bg-[#F9EFDD] flex text-[#071013] font-sans selection:bg-[#E9AD5D] selection:text-white">
+      {/* Fonts Injection */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Poppins:wght@300;400;500;600;700&display=swap');
+      `}</style>
+
       {/* Sidebar Navigation */}
-      <aside className="w-64 bg-stone-900 text-stone-200 flex flex-col fixed h-full z-20 shadow-xl">
-        <div className="p-8 pb-4 border-b border-stone-800">
-          <h1 className="text-2xl font-bold tracking-tight text-white">Retail Command<br/><span className="text-indigo-400">Centre</span></h1>
-          <p className="text-xs text-stone-500 mt-2 font-medium">Independent Retailer Edition</p>
+      <aside className="w-64 bg-[#778472] text-[#F9EFDD] flex flex-col fixed h-full z-20 shadow-xl font-['Poppins']">
+        <div className="p-8 pb-4 border-b border-[#F9EFDD]/20">
+          <h1 className="text-2xl font-bold tracking-tight text-white font-['Caveat']">Retail Command<br/><span className="text-[#E9AD5D]">Centre</span></h1>
+          <p className="text-xs text-[#F9EFDD]/70 mt-2 font-medium">Independent Retailer Edition</p>
         </div>
         
         <nav className="flex-1 px-4 py-6 space-y-2">
           <button 
             onClick={() => setActiveTab('bigpicture')}
-            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'bigpicture' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20 transform scale-105' : 'text-stone-400 hover:bg-stone-800 hover:text-white'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'bigpicture' ? 'bg-[#F9EFDD] text-[#778472] shadow-lg transform scale-105' : 'text-[#F9EFDD]/70 hover:bg-[#F9EFDD]/10 hover:text-white'}`}
           >
             <LayoutDashboard size={20} />
             The Big Picture
@@ -1155,7 +1156,7 @@ const App = () => {
 
           <button 
             onClick={() => setActiveTab('focus')}
-            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'focus' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20 transform scale-105' : 'text-stone-400 hover:bg-stone-800 hover:text-white'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'focus' ? 'bg-[#F9EFDD] text-[#778472] shadow-lg transform scale-105' : 'text-[#F9EFDD]/70 hover:bg-[#F9EFDD]/10 hover:text-white'}`}
           >
             <ListTodo size={20} />
             Weekly Focus
@@ -1163,16 +1164,16 @@ const App = () => {
 
           <button 
             onClick={() => setActiveTab('stock')}
-            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'stock' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20 transform scale-105' : 'text-stone-400 hover:bg-stone-800 hover:text-white'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'stock' ? 'bg-[#F9EFDD] text-[#778472] shadow-lg transform scale-105' : 'text-[#F9EFDD]/70 hover:bg-[#F9EFDD]/10 hover:text-white'}`}
           >
             <Store size={20} />
             The Stock Room
           </button>
           
-          <div className="pt-6 mt-6 border-t border-stone-800">
+          <div className="pt-6 mt-6 border-t border-[#F9EFDD]/20">
             <button 
               onClick={() => setActiveTab('setup')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${activeTab === 'setup' ? 'text-indigo-300 bg-indigo-900/20' : 'text-stone-500 hover:bg-stone-800 hover:text-stone-300'}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${activeTab === 'setup' ? 'text-[#E9AD5D] bg-[#F9EFDD]/10' : 'text-[#F9EFDD]/70 hover:bg-[#F9EFDD]/10 hover:text-white'}`}
             >
               <Settings size={20} />
               System Guide
@@ -1180,25 +1181,25 @@ const App = () => {
           </div>
         </nav>
 
-        <div className="p-6 bg-stone-950 m-4 rounded-xl border border-stone-800">
-          <div className="flex items-start gap-3 text-stone-400 text-xs leading-relaxed">
-            <HeartHandshake size={24} className="shrink-0 text-indigo-500" />
+        <div className="p-6 bg-[#071013]/20 m-4 rounded-xl border border-[#F9EFDD]/10">
+          <div className="flex items-start gap-3 text-[#F9EFDD]/80 text-xs leading-relaxed">
+            <HeartHandshake size={24} className="shrink-0 text-[#E9AD5D]" />
             <p>"Retail is detail, but don't forget to look up and smile at the customer."</p>
           </div>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 ml-64 p-8 md:p-12 h-screen overflow-hidden flex flex-col relative bg-stone-50">
+      <main className="flex-1 ml-64 p-8 md:p-12 h-screen overflow-hidden flex flex-col relative bg-[#F9EFDD] font-['Poppins']">
         <header className="flex justify-between items-center mb-8 shrink-0">
           <div>
-             <h2 className="text-3xl font-extrabold text-stone-900 tracking-tight">
+             <h2 className="text-3xl font-extrabold text-[#071013] tracking-tight font-['Caveat']">
               {activeTab === 'stock' && "Manage Your Stock"}
               {activeTab === 'bigpicture' && "Your Shop's Pulse"}
               {activeTab === 'focus' && "This Week's Goals"}
               {activeTab === 'setup' && "Build It Yourself"}
             </h2>
-            <p className="text-stone-500 text-sm mt-1 font-medium">
+            <p className="text-[#071013]/70 text-sm mt-1 font-medium">
                {activeTab === 'stock' && "Keep your inventory accurate to get the best advice."}
                {activeTab === 'bigpicture' && "A clear view of what's selling and what's sticking."}
                {activeTab === 'focus' && "Simple steps to improve your cash flow today."}
@@ -1206,18 +1207,18 @@ const App = () => {
             </p>
           </div>
           
-          <div className="flex items-center gap-3 bg-white p-2 rounded-full shadow-sm border border-stone-200 px-4">
+          <div className="flex items-center gap-3 bg-white p-2 rounded-full shadow-sm border border-[#E9AD5D]/30 px-4">
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-bold text-stone-900">Keith's Demo Shop</p>
-              <p className="text-[10px] text-green-600 font-bold uppercase tracking-wider">Live</p>
+              <p className="text-sm font-bold text-[#071013]">Keith's Demo Shop</p>
+              <p className="text-[10px] text-[#778472] font-bold uppercase tracking-wider">Live</p>
             </div>
-            <div className="h-10 w-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold shadow-md">
+            <div className="h-10 w-10 bg-gradient-to-br from-[#778472] to-[#5f6a5a] rounded-full flex items-center justify-center text-white font-bold shadow-md">
               KS
             </div>
           </div>
         </header>
 
-        <div className="flex-1 overflow-hidden rounded-2xl shadow-sm bg-white border border-stone-200">
+        <div className="flex-1 overflow-hidden rounded-2xl shadow-sm bg-white border border-[#E9AD5D]/20">
            {activeTab === 'stock' && <StockRoom inventory={inventory} setInventory={setInventory} />}
            {activeTab === 'bigpicture' && <BigPicture inventory={inventory} />}
            {activeTab === 'focus' && <WeeklyFocus inventory={inventory} />}
@@ -1229,9 +1230,9 @@ const App = () => {
            {!globalChatOpen && (
              <button 
                onClick={() => setGlobalChatOpen(true)}
-               className="flex items-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-xl transition-all hover:scale-105 font-bold"
+               className="flex items-center gap-2 px-6 py-3 bg-[#778472] hover:bg-[#5f6a5a] text-white rounded-full shadow-xl transition-all hover:scale-105 font-bold font-['Caveat'] text-lg border-2 border-[#F9EFDD]"
              >
-               <MessageSquare size={20} />
+               <MessageSquare size={22} className="text-[#E9AD5D]" />
                Ask The Reluctant Retailer
              </button>
            )}
