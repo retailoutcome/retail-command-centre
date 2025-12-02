@@ -33,14 +33,21 @@ import {
 
 // --- Gemini API Setup ---
 // Safely check for process to avoid ReferenceError in browser-only environments
-const apiKey = typeof process !== 'undefined' && process.env && process.env.REACT_APP_GEMINI_API_KEY 
-  ? process.env.REACT_APP_GEMINI_API_KEY 
-  : "";
+//const apiKey = typeof process !== 'undefined' && process.env && process.env.REACT_APP_GEMINI_API_KEY 
+//  ? process.env.REACT_APP_GEMINI_API_KEY 
+//  : "";
+
+//const callGemini = async (prompt, contextData, systemInstructionOverride = null) => {
+//  const defaultSystemPrompt = `You are Keith J Lockwood, author of 'The Reluctant Retailer'. 
+//  You are a supportive mentor to independent shopkeepers in the UK.
+
+  // --- Gemini API Setup ---
+const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
 
 const callGemini = async (prompt, contextData, systemInstructionOverride = null) => {
   const defaultSystemPrompt = `You are Keith J Lockwood, author of 'The Reluctant Retailer'. 
   You are a supportive mentor to independent shopkeepers in the UK.
-  
+    
   **CRITICAL INSTRUCTIONS:**
   1. **Language:** ALWAYS use British English spelling (e.g., colour, behaviour, organise, centre, programme).
   2. **Formatting:** - Use **Markdown Tables** for ANY data comparisons or lists of figures. Ensure columns are separated by pipes (|).
