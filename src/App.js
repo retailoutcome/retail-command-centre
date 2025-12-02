@@ -98,9 +98,11 @@ const INITIAL_INVENTORY = [
 
 // --- Helper Components ---
 
+// Advanced Text Renderer: Handles Bold, Lists, and Markdown Tables
 const FormattedText = ({ text }) => {
   if (!text) return null;
 
+  // Split text into blocks to identify tables vs paragraphs
   const lines = text.split('\n');
   const blocks = [];
   let currentTable = [];
@@ -125,10 +127,12 @@ const FormattedText = ({ text }) => {
     <div className="text-sm text-stone-600 leading-relaxed space-y-3 font-['Poppins']">
       {blocks.map((block, idx) => {
         if (block.type === 'table') {
+          // Parse Table
           const rows = block.content.map(row => 
             row.split('|').filter(cell => cell.trim() !== '').map(cell => cell.trim())
           ).filter(row => row.length > 0);
           
+          // Filter out separator lines (e.g. ---|---)
           const cleanRows = rows.filter(row => !row[0].match(/^[-:]+$/));
 
           if (cleanRows.length === 0) return null;
@@ -150,6 +154,7 @@ const FormattedText = ({ text }) => {
                     <tr key={rIdx} className="hover:bg-[#F9EFDD]/20 transition-colors">
                       {row.map((cell, cIdx) => (
                         <td key={cIdx} className="px-4 py-3 text-sm text-[#071013]">
+                           {/* Render bold text inside cells */}
                            {cell.split(/(\*\*.*?\*\*)/g).map((part, pIdx) => 
                               part.startsWith('**') ? <strong key={pIdx} className="text-[#778472]">{part.slice(2, -2)}</strong> : part
                            )}
@@ -162,6 +167,7 @@ const FormattedText = ({ text }) => {
             </div>
           );
         } else {
+          // Parse Text (Bold & Lists)
           const isList = block.content.trim().startsWith('- ') || block.content.trim().startsWith('* ');
           const cleanContent = isList ? block.content.trim().substring(2) : block.content;
           
@@ -695,18 +701,21 @@ const BigPicture = ({ inventory }) => {
   }, [inventory]);
 
   // Budget Calculation Logic (Target 10 weeks cover)
+  // Updated to calculate target stock per item, then sum, to match Category Breakdown logic
   const budgetData = useMemo(() => {
-    const avgWeeklySalesItems = inventory.reduce((acc, item) => acc + (item.sales_last_month / 4), 0);
-    const avgItemCost = inventory.reduce((acc, item) => acc + item.cost, 0) / (inventory.length || 1);
-    const weeklySalesCost = avgWeeklySalesItems * avgItemCost;
+    let totalTargetStockVal = 0;
     
-    const targetWeeks = 10;
-    const targetStock = weeklySalesCost * targetWeeks;
+    inventory.forEach(item => {
+       const weeklySales = item.sales_last_month / 4;
+       const itemTargetStockVal = weeklySales * item.cost * 10; // 10 weeks cover
+       totalTargetStockVal += itemTargetStockVal;
+    });
+
     const currentStock = stats.totalStockVal;
-    const budget = Math.max(0, targetStock - currentStock);
+    const budget = Math.max(0, totalTargetStockVal - currentStock);
     
     return {
-      targetStock: Math.round(targetStock),
+      targetStock: Math.round(totalTargetStockVal),
       currentStock: Math.round(currentStock),
       budget: Math.round(budget)
     };
@@ -722,7 +731,7 @@ const BigPicture = ({ inventory }) => {
       cats[catName].sales += (item.sales_last_month * item.rrp);
       cats[catName].stock += (item.stock * item.cost);
       cats[catName].salesQty += item.sales_last_month;
-      cats[catName].costSum += item.cost; // simple sum for avg
+      cats[catName].costSum += (item.cost * item.sales_last_month); // Weighted cost for target calc
       
       const exVat = item.rrp / 1.2;
       const m = item.rrp > 0 ? ((exVat - item.cost) / exVat) : 0;
@@ -732,15 +741,18 @@ const BigPicture = ({ inventory }) => {
     
     return Object.keys(cats).map(k => {
        const weeklySalesQty = cats[k].salesQty / 4;
-       // Avg item cost in this category
-       const avgCost = cats[k].costSum / cats[k].count;
-       const targetStockVal = (weeklySalesQty * avgCost) * 10; // 10 weeks cover target value in cost
-       
+       // Target Stock Value = Weekly Sales Qty * Avg Item Cost * 10
+       // We iterate through items to get exact target value
+       let catTargetStockVal = 0;
+       inventory.filter(i => (i.category || 'Uncategorized') === k).forEach(i => {
+          catTargetStockVal += (i.sales_last_month / 4) * i.cost * 10;
+       });
+
        return {
         name: k,
         sales: cats[k].sales,
         stock: cats[k].stock,
-        targetStock: targetStockVal,
+        targetStock: catTargetStockVal,
         avgMargin: cats[k].count > 0 ? (cats[k].marginSum / cats[k].count) * 100 : 0
       };
     });
@@ -843,8 +855,8 @@ const BigPicture = ({ inventory }) => {
             <p className="text-[#071013]/60 text-xs mt-1">Can I afford new stock?</p>
           </div>
           <div className="p-8 flex-1 flex flex-col justify-center items-center text-center">
-            <div className="w-40 h-40 rounded-full border-8 border-[#F9EFDD] flex items-center justify-center mb-6 bg-white shadow-inner">
-              <span className="text-3xl font-extrabold text-[#778472] tracking-tight">£{budgetData.budget.toLocaleString()}</span>
+            <div className="w-40 h-40 rounded-full border-8 border-emerald-50 flex items-center justify-center mb-6 bg-white shadow-inner">
+              <span className="text-3xl font-extrabold text-emerald-600 tracking-tight">£{budgetData.budget.toLocaleString()}</span>
             </div>
             <h4 className="text-stone-900 font-bold text-lg mb-2">{budgetData.budget > 0 ? "Yes, you have budget." : "Hold off buying."}</h4>
             <p className="text-stone-500 text-sm leading-relaxed max-w-xs">
@@ -852,7 +864,7 @@ const BigPicture = ({ inventory }) => {
             </p>
             <button 
               onClick={() => setBudgetModalOpen(true)}
-              className="mt-8 px-4 py-2 bg-[#F9EFDD] text-[#778472] rounded-lg text-xs font-bold uppercase tracking-wide hover:bg-[#E9AD5D]/20 transition-colors"
+              className="mt-8 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-bold uppercase tracking-wide hover:bg-emerald-100 transition-colors"
             >
               See Calculation
             </button>
