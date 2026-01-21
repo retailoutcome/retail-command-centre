@@ -26,12 +26,14 @@ import {
   Package 
 } from 'lucide-react';
 
-// --- Gemini API Setup ---
-const apiKey = typeof process !== 'undefined' && process.env && process.env.REACT_APP_GEMINI_API_KEY 
-  ? process.env.REACT_APP_GEMINI_API_KEY 
-  : "";
-
+// --- Gemini API Setup (Using Official SDK) ---
+import { GoogleGenerativeAI } from "@google/generative-ai";
+const apiKey = process.env.REACT_APP_GEMINI_API_KEY || "";
+const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 const callGemini = async (prompt, contextData, systemInstructionOverride = null) => {
+  if (!genAI) {
+    return "I'm having a spot of bother connecting to my brain right now. Please check your API Key settings in Vercel.";
+  }
   const defaultSystemPrompt = `You are Keith J Lockwood, author of 'The Reluctant Retailer'. 
   You are a supportive mentor to independent shopkeepers in the UK.
   
@@ -47,32 +49,17 @@ const callGemini = async (prompt, contextData, systemInstructionOverride = null)
   Provide a friendly, actionable response.`;
   
   const finalSystemPrompt = systemInstructionOverride || defaultSystemPrompt;
-  
-  const payload = {
-    contents: [{ parts: [{ text: prompt }] }],
-    systemInstruction: { parts: [{ text: finalSystemPrompt }] }
-  };
-
   try {
-    const response = await fetch(
-     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      }
-    );
-    const data = await response.json();
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.0-flash",
+      systemInstruction: finalSystemPrompt
+    });
     
-    if (!response.ok) {
-         console.error("Gemini API Error:", data);
-         return "I'm having a spot of bother connecting to my brain right now. Please check your API Key settings in Vercel.";
-    }
-
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm having a spot of bother thinking right now. Ask me again in a moment.";
+    const result = await model.generateContent(prompt);
+    return result.response.text() || "I'm having a spot of bother thinking right now. Ask me again in a moment.";
   } catch (error) {
-    console.error("Network Error:", error);
-    return "I'm having trouble connecting. Please check your internet.";
+    console.error("Gemini API Error:", error);
+    return "I'm having a spot of bother connecting to my brain right now. Please check your API Key settings in Vercel.";
   }
 };
 
