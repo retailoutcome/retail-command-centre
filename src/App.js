@@ -27,9 +27,7 @@ import {
 } from 'lucide-react';
 
 // --- Gemini API Setup ---
-const apiKey = typeof process !== 'undefined' && process.env && process.env.REACT_APP_GEMINI_API_KEY 
-  ? process.env.REACT_APP_GEMINI_API_KEY 
-  : "";
+const apiKey = "AIzaSyBIqVjZ2QOL4znTF9Dc-kNFFZEu33Baf44";
 
 const callGemini = async (prompt, contextData, systemInstructionOverride = null) => {
   const defaultSystemPrompt = `You are Keith J Lockwood, author of 'The Reluctant Retailer'. 
