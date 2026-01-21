@@ -1585,13 +1585,13 @@ const SystemSetup = () => {
           <p className="text-sm text-stone-600 mb-4">
             In **Column M**, paste this logic to auto-generate an action plan based on your inventory health.
           </p>
-          <div className="bg-white p-4 rounded-lg border border-stone-200 text-xs font-mono text-purple-600 overflow-x-auto">
-<pre>{`=IFS(
-  AND(G2 > 20, H2 < 3), "Clearance Opportunity",
-  AND(G2 < 10, H2 > 10), "Restock Alert",
-  AND(((F2/1.2)-E2)/(F2/1.2) < 0.40, H2 > 5), "Profit Check",
-  TRUE, "OK"
-)`}</pre>
+          <div className="bg-slate-50 p-3 rounded font-mono text-xs">
+            <div>=IFS(</div>
+            <div className="pl-4">AND(G2 &gt; 20, H2 &lt; 3), "Clearance Opportunity",</div>
+            <div className="pl-4">AND(G2 &lt; 10, H2 &gt; 10), "Restock Alert",</div>
+            <div className="pl-4">AND(((F2/1.2)-E2)/(F2/1.2) &lt; 0.40, H2 &gt; 5), "Profit Check",</div>
+            <div className="pl-4">TRUE, "OK"</div>
+            <div>)</div>
           </div>
         </div>
 
