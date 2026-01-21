@@ -3,29 +3,26 @@ import {
   LayoutDashboard, 
   Settings, 
   Plus, 
-  Search,
-  Filter,
   Download,
   TrendingUp, 
   TrendingDown, 
-  AlertCircle, 
-  Sparkles,
-  Loader2,
-  X,
-  BarChart3,
-  FileSpreadsheet,
-  Calculator,
-  ListTodo,
-  MessageSquare,
-  Send,
-  HeartHandshake,
-  Store,
-  UploadCloud,
-  Megaphone,
-  Mail,
-  Eye,
-  CalendarRange,
-  Package
+  Sparkles, 
+  Loader2, 
+  X, 
+  BarChart3, 
+  FileSpreadsheet, 
+  Calculator, 
+  ListTodo, 
+  MessageSquare, 
+  Send, 
+  HeartHandshake, 
+  Store, 
+  UploadCloud, 
+  Megaphone, 
+  Mail, 
+  Eye, 
+  CalendarRange, 
+  Package 
 } from 'lucide-react';
 
 // --- Gemini API Setup ---
@@ -1580,11 +1577,11 @@ const SystemSetup = () => {
             In **Column M**, paste this logic to auto-generate an action plan based on your inventory health.
           </p>
           <div className="bg-white p-4 rounded-lg border border-stone-200 text-xs font-mono text-purple-600 overflow-x-auto">
-             <div>=IFS(</div>
-             <div className="pl-4">AND(G2 &gt; 20, H2 &lt; 3), "Clearance Opportunity",</div>
-             <div className="pl-4">AND(G2 &lt; 10, H2 &gt; 10), "Restock Alert",</div>
-             <div className="pl-4">AND(((F2/1.2)-E2)/(F2/1.2) &lt; 0.40, H2 &gt; 5), "Profit Check",</div>
-             <div className="pl-4">TRUE, "OK"</div>
+             <div className="mb-1">=IFS(</div>
+             <div className="pl-4 mb-1">AND(G2 &gt; 20, H2 &lt; 3), "Clearance Opportunity",</div>
+             <div className="pl-4 mb-1">AND(G2 &lt; 10, H2 &gt; 10), "Restock Alert",</div>
+             <div className="pl-4 mb-1">AND(((F2/1.2)-E2)/(F2/1.2) &lt; 0.40, H2 &gt; 5), "Profit Check",</div>
+             <div className="pl-4 mb-1">TRUE, "OK"</div>
              <div>)</div>
           </div>
         </div>
