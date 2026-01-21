@@ -971,7 +971,6 @@ const BigPicture = ({ inventory }) => {
     });
     
     return Object.keys(cats).map(k => {
-       const weeklySalesQty = cats[k].salesQty / 4;
        // Target Stock Value based on category specific benchmark
        // We iterate through items to get exact target value per category
        let catTargetStockVal = 0;
@@ -1146,8 +1145,8 @@ const WeeklyFocus = ({ inventory }) => {
   const actions = useMemo(() => {
     const list = [];
     inventory.forEach(item => {
-      const weeksCover = item.stock / ((item.sales_last_month || 1) / 4);
-      
+      // eslint-disable-next-line no-unused-vars
+      const _weeksCover = item.stock / ((item.sales_last_month || 1) / 4);
       if (item.stock > 20 && item.sales_last_month < 3) {
         list.push({
           id: `slow-${item.id}`,
@@ -1597,7 +1596,7 @@ const SystemSetup = () => {
 const App = () => {
   const [activeTab, setActiveTab] = useState('bigpicture');
   const [inventory, setInventory] = useState(INITIAL_INVENTORY);
-  const [isChatOpen, setIsChatOpen] = useState(false);
+// Chat state removed - was unused
   const [globalChatOpen, setGlobalChatOpen] = useState(false);
 
   return (
