@@ -370,7 +370,7 @@ const WSSIDetailModal = ({ isOpen, onClose, categoryName, products }) => {
                                 <th className="px-6 py-4 font-bold text-right">Wkly Sales</th>
                                 <th className="px-6 py-4 font-bold text-center">Cover (Wks)</th>
                                 <th className="px-6 py-4 font-bold text-right bg-[#F9EFDD]/30">4-Wk Forecast</th>
-                                <th className="px-6 py-4 font-bold text-right bg-[#F9EFDD]/30">Proj. Close</th>
+                                <th className="px-6 py-4 font-bold text-right bg-[#F9EFDD]/30">Proj. Close Stock</th>
                                 <th className="px-6 py-4 font-bold text-right text-[#778472]">Intake Req</th>
                             </tr>
                         </thead>
