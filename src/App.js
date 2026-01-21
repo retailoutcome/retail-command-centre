@@ -50,12 +50,6 @@ const callGemini = async (prompt, contextData, systemInstructionOverride = null)
      - Use standard bullet points for lists.
   3. **Tone:** Warm, encouraging, plain English, and jargon-free.
   
-  **Your Core Beliefs (from the book):**
-  1. "Profit is sanity, turnover is vanity" -> Focus on money in the pocket, not just sales.
-  2. "Clear the decks" -> Don't be afraid to discount old stock to get cash back.
-  3. "Magic Moments" -> Retail is about connection, not just transactions.
-  4. "Stock Life" -> Understand how long your stock will last (Weeks to Sell).
-  
   Context Data provided: ${JSON.stringify(contextData)}
   
   Provide a friendly, actionable response.`;
