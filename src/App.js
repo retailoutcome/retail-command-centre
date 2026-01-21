@@ -28,26 +28,21 @@ import {
   Store,
   UploadCloud,
   Megaphone,
-  Mail
+  Mail,
+  Eye,
+  CalendarRange,
+  Package
 } from 'lucide-react';
 
 // --- Gemini API Setup ---
-// Safely check for process to avoid ReferenceError in browser-only environments
-//const apiKey = typeof process !== 'undefined' && process.env && process.env.REACT_APP_GEMINI_API_KEY 
-//  ? process.env.REACT_APP_GEMINI_API_KEY 
-//  : "";
-
-//const callGemini = async (prompt, contextData, systemInstructionOverride = null) => {
-//  const defaultSystemPrompt = `You are Keith J Lockwood, author of 'The Reluctant Retailer'. 
-//  You are a supportive mentor to independent shopkeepers in the UK.
-
-  // --- Gemini API Setup ---
-const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+const apiKey = typeof process !== 'undefined' && process.env && process.env.REACT_APP_GEMINI_API_KEY 
+  ? process.env.REACT_APP_GEMINI_API_KEY 
+  : "";
 
 const callGemini = async (prompt, contextData, systemInstructionOverride = null) => {
   const defaultSystemPrompt = `You are Keith J Lockwood, author of 'The Reluctant Retailer'. 
   You are a supportive mentor to independent shopkeepers in the UK.
-    
+  
   **CRITICAL INSTRUCTIONS:**
   1. **Language:** ALWAYS use British English spelling (e.g., colour, behaviour, organise, centre, programme).
   2. **Formatting:** - Use **Markdown Tables** for ANY data comparisons or lists of figures. Ensure columns are separated by pipes (|).
@@ -84,12 +79,13 @@ const callGemini = async (prompt, contextData, systemInstructionOverride = null)
     const data = await response.json();
     
     if (!response.ok) {
-         return "I'm having a spot of bother connecting to my brain right now. Please check your API Key settings.";
+         console.error("Gemini API Error:", data);
+         return "I'm having a spot of bother connecting to my brain right now. Please check your API Key settings in Vercel.";
     }
 
     return data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm having a spot of bother thinking right now. Ask me again in a moment.";
   } catch (error) {
-    console.error("AI Error:", error);
+    console.error("Network Error:", error);
     return "I'm having trouble connecting. Please check your internet.";
   }
 };
@@ -103,20 +99,37 @@ const INITIAL_INVENTORY = [
   { id: 5, name: 'Greeting Card - Bday', category: 'Gifts', supplier: 'Paper Dreams', cost: 0.45, rrp: 2.95, stock: 150, sales_last_month: 80, sales_hist: 1200 },
 ];
 
+// --- LOGIC: UK Weeks of Cover Benchmarks ---
+const getCategoryTargetWeeks = (category) => {
+  if (!category) return 10; // Default fallback
+  const c = category.toLowerCase();
+
+  if (c.includes('fashion') || c.includes('clothing') || c.includes('apparel')) return 9; // 7-11 weeks
+  if (c.includes('footwear') || c.includes('shoe')) return 9; // 7-11 weeks
+  if (c.includes('jewel') || c.includes('watch')) return 33; // 22-45 weeks (High value)
+  if (c.includes('furniture') || c.includes('sofa') || c.includes('bed')) return 12; // 9-15 weeks
+  if (c.includes('homeware') || c.includes('gift')) return 9; // 7-11 weeks
+  if (c.includes('beauty') || c.includes('health') || c.includes('cosmetic')) return 6; // 4-7 weeks
+  if (c.includes('sport') || c.includes('outdoor')) return 8; // 6-9 weeks
+  if (c.includes('toy') || c.includes('game')) return 9; // 7-11 weeks
+  if (c.includes('book') || c.includes('stationery')) return 6; // 5-7 weeks
+  if (c.includes('electr') || c.includes('tech')) return 5; // 3-7 weeks
+  if (c.includes('garden') || c.includes('plant')) return 6; // Shoulder season avg
+
+  return 10; // General UK Independent Average
+};
+
 // --- Helper Components ---
 
-// Advanced Text Renderer: Handles Bold, Lists, and Markdown Tables Robustly
 const FormattedText = ({ text }) => {
   if (!text) return null;
 
-  // Split text into blocks to identify tables vs paragraphs
   const lines = text.split('\n');
   const blocks = [];
   let currentTable = [];
 
   lines.forEach((line) => {
     const trimmed = line.trim();
-    // Check if line looks like a table row (starts and ends with | or contains multiple |)
     if (trimmed.startsWith('|') || (trimmed.split('|').length > 2)) {
       currentTable.push(trimmed);
     } else {
@@ -135,17 +148,13 @@ const FormattedText = ({ text }) => {
     <div className="text-sm text-stone-600 leading-relaxed space-y-3 font-['Poppins']">
       {blocks.map((block, idx) => {
         if (block.type === 'table') {
-          // Parse Table
-          // Filter out empty rows and clean up pipes
           const rows = block.content.map(row => 
             row.split('|')
                .map(cell => cell.trim())
-               .filter(cell => cell !== '') // Remove empty cells from leading/trailing pipes
+               .filter(cell => cell !== '') 
           ).filter(row => row.length > 0);
           
-          // Robustly filter out separator lines (e.g. ---|--- or :---:)
           const cleanRows = rows.filter(row => {
-             // Check if the row consists mostly of dashes/colons
              const rowString = row.join('');
              return !/^[-:|]+$/.test(rowString); 
           });
@@ -169,7 +178,6 @@ const FormattedText = ({ text }) => {
                     <tr key={rIdx} className="hover:bg-[#F9EFDD]/20 transition-colors">
                       {row.map((cell, cIdx) => (
                         <td key={cIdx} className="px-4 py-3 text-sm text-[#071013]">
-                           {/* Render bold text inside cells */}
                            {cell.split(/(\*\*.*?\*\*)/g).map((part, pIdx) => 
                               part.startsWith('**') ? <strong key={pIdx} className="text-[#778472]">{part.slice(2, -2)}</strong> : part
                            )}
@@ -182,7 +190,6 @@ const FormattedText = ({ text }) => {
             </div>
           );
         } else {
-          // Parse Text (Bold & Lists)
           const isList = block.content.trim().startsWith('- ') || block.content.trim().startsWith('* ');
           const cleanContent = isList ? block.content.trim().substring(2) : block.content;
           
@@ -304,7 +311,7 @@ const GlobalChatbot = ({ isOpen, onClose }) => {
           <div className="flex justify-start">
              <div className="bg-white border border-[#E9AD5D]/20 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm flex items-center gap-2">
                 <Loader2 size={14} className="animate-spin text-[#778472]" />
-                <span className="text-xs text-[#071013]/50 italic">Consulting the book...</span>
+                <span className="text-xs text-stone-400">Thinking...</span>
              </div>
           </div>
         )}
@@ -326,6 +333,274 @@ const GlobalChatbot = ({ isOpen, onClose }) => {
         >
           <Send size={18} />
         </button>
+      </div>
+    </div>
+  );
+};
+
+// --- Modals ---
+
+const WSSIDetailModal = ({ isOpen, onClose, categoryName, products }) => {
+    if (!isOpen) return null;
+    
+    // Recalculate target weeks for context
+    const targetWeeks = getCategoryTargetWeeks(categoryName);
+
+    return (
+        <div className="fixed inset-0 bg-[#071013]/60 z-50 flex items-center justify-center backdrop-blur-sm p-4 animate-in fade-in duration-200 font-['Poppins']">
+            <div className="bg-white w-full max-w-6xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in slide-in-from-bottom-4 duration-300 border-2 border-[#778472]">
+                
+                {/* Header */}
+                <div className="p-5 border-b border-[#F9EFDD] flex justify-between items-center bg-[#778472] text-[#F9EFDD]">
+                    <div className="flex items-center gap-3">
+                        <div className="bg-[#F9EFDD]/20 p-2 rounded-full">
+                            <CalendarRange size={20} className="text-[#E9AD5D]" />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-xl font-['Caveat']">{categoryName} WSSI Detail</h3>
+                            <p className="text-xs text-[#F9EFDD]/80 uppercase tracking-wider">Weekly Sales, Stock & Intake Plan</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="text-[#F9EFDD]/70 hover:text-[#F9EFDD] transition-colors">
+                        <X size={24} />
+                    </button>
+                </div>
+
+                {/* Content */}
+                <div className="p-0 overflow-y-auto bg-white flex-1">
+                    <table className="w-full text-sm text-left border-collapse">
+                        <thead className="text-xs text-[#071013]/50 uppercase bg-[#F9EFDD] sticky top-0 z-10 border-b border-[#E9AD5D]/20">
+                            <tr>
+                                <th className="px-6 py-4 font-bold">Product</th>
+                                <th className="px-6 py-4 font-bold text-right">Current Stock</th>
+                                <th className="px-6 py-4 font-bold text-right">Wkly Sales</th>
+                                <th className="px-6 py-4 font-bold text-center">Cover (Wks)</th>
+                                <th className="px-6 py-4 font-bold text-right bg-[#F9EFDD]/30">4-Wk Forecast</th>
+                                <th className="px-6 py-4 font-bold text-right bg-[#F9EFDD]/30">Proj. Close</th>
+                                <th className="px-6 py-4 font-bold text-right text-[#778472]">Intake Req</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#E9AD5D]/10 bg-white">
+                            {products.map((item) => {
+                                const stockVal = item.stock * item.cost;
+                                const weeklySalesCost = (item.sales_last_month * item.cost) / 4;
+                                const weeklySalesUnits = item.sales_last_month / 4;
+                                const currentCover = weeklySalesCost > 0 ? (stockVal / weeklySalesCost) : 999;
+                                
+                                // Forward Calculations (Value)
+                                const forecastSalesVal = weeklySalesCost * 4;
+                                const projectedStockVal = Math.max(0, stockVal - forecastSalesVal);
+                                const targetStockVal = weeklySalesCost * targetWeeks;
+                                const intakeReqVal = Math.max(0, targetStockVal - projectedStockVal);
+
+                                // Forward Calculations (Units)
+                                const forecastSalesUnits = weeklySalesUnits * 4;
+                                const projectedStockUnits = Math.max(0, item.stock - forecastSalesUnits);
+                                const targetStockUnits = weeklySalesUnits * targetWeeks;
+                                const intakeReqUnits = Math.max(0, targetStockUnits - projectedStockUnits);
+
+                                // Status color logic
+                                let coverColor = "text-[#071013]";
+                                if (currentCover > targetWeeks * 1.5) coverColor = "text-[#D12323] font-bold";
+                                if (currentCover < targetWeeks * 0.8) coverColor = "text-[#E9AD5D] font-bold";
+
+                                return (
+                                    <tr key={item.id} className="hover:bg-[#F9EFDD]/30 transition-colors">
+                                        <td className="px-6 py-4 font-medium text-[#071013]">{item.name}</td>
+                                        
+                                        {/* Current Stock */}
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="font-bold text-[#071013]">£{stockVal.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
+                                            <div className="text-xs text-[#071013]/60 flex items-center justify-end gap-1"><Package size={10}/> {item.stock} units</div>
+                                        </td>
+
+                                        {/* Weekly Sales */}
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="font-bold text-[#071013]">£{weeklySalesCost.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
+                                            <div className="text-xs text-[#071013]/60 flex items-center justify-end gap-1"><Package size={10}/> {weeklySalesUnits.toFixed(1)} units</div>
+                                        </td>
+
+                                        <td className={`px-6 py-4 text-center ${coverColor}`}>
+                                            {currentCover > 52 ? '52+' : currentCover.toFixed(1)}
+                                        </td>
+
+                                        {/* Forecast */}
+                                        <td className="px-6 py-4 text-right bg-[#F9EFDD]/10">
+                                            <div className="text-[#071013]/70">£{forecastSalesVal.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
+                                            <div className="text-xs text-[#071013]/40">{forecastSalesUnits.toFixed(1)} units</div>
+                                        </td>
+
+                                        {/* Projected Close */}
+                                        <td className="px-6 py-4 text-right bg-[#F9EFDD]/10">
+                                            <div className="text-[#071013]/70">£{projectedStockVal.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
+                                            <div className="text-xs text-[#071013]/40">{projectedStockUnits.toFixed(1)} units</div>
+                                        </td>
+                                        
+                                        {/* Intake Req */}
+                                        <td className={`px-6 py-4 text-right font-bold ${intakeReqVal > 0 ? 'text-[#778472]' : 'text-[#071013]/20'}`}>
+                                            <div className="font-bold">£{intakeReqVal.toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
+                                            <div className="text-xs text-[#778472]/70 flex items-center justify-end gap-1"><Package size={10}/> {Math.ceil(intakeReqUnits)} units</div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                            {products.length === 0 && (
+                                <tr>
+                                    <td colSpan={7} className="text-center py-8 text-stone-400">No products found in this category.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div className="p-4 border-t border-[#F9EFDD] bg-[#F9EFDD]/30 rounded-b-2xl flex justify-between items-center">
+                    <div className="text-xs text-[#071013]/50 italic">
+                        Target Weeks Cover for {categoryName}: <strong>{targetWeeks}</strong>
+                    </div>
+                    <button onClick={onClose} className="px-6 py-2 bg-white border border-[#778472]/20 rounded-lg text-[#778472] font-bold hover:bg-[#F9EFDD] transition-colors">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const CategoryDetailModal = ({ isOpen, onClose, categoryName, products }) => {
+  if (!isOpen) return null;
+  
+  const targetWeeks = getCategoryTargetWeeks(categoryName);
+
+  return (
+    <div className="fixed inset-0 bg-[#071013]/60 z-50 flex items-center justify-center backdrop-blur-sm p-4 animate-in fade-in duration-200 font-['Poppins']">
+      <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in slide-in-from-bottom-4 duration-300 border-2 border-[#778472]">
+        
+        {/* Header */}
+        <div className="p-5 border-b border-[#F9EFDD] flex justify-between items-center bg-[#778472] text-[#F9EFDD]">
+          <div className="flex items-center gap-3">
+             <div className="bg-[#F9EFDD]/20 p-2 rounded-full">
+                <BarChart3 size={20} className="text-[#E9AD5D]" />
+             </div>
+             <div>
+               <h3 className="font-bold text-xl font-['Caveat']">{categoryName} Details</h3>
+               <p className="text-xs text-[#F9EFDD]/80 uppercase tracking-wider">Target Weeks Cover: {targetWeeks}</p>
+             </div>
+          </div>
+          <button onClick={onClose} className="text-[#F9EFDD]/70 hover:text-[#F9EFDD] transition-colors">
+            <X size={24} />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-0 overflow-y-auto bg-white flex-1">
+          <table className="w-full text-sm text-left border-collapse">
+            <thead className="text-xs text-[#071013]/50 uppercase bg-[#F9EFDD] sticky top-0 z-10 border-b border-[#E9AD5D]/20">
+              <tr>
+                <th className="px-6 py-4 font-bold">Product Name</th>
+                <th className="px-6 py-4 font-bold text-right">Cost</th>
+                <th className="px-6 py-4 font-bold text-right">Price</th>
+                <th className="px-6 py-4 font-bold text-right">Margin</th>
+                <th className="px-6 py-4 font-bold text-right">Stock</th>
+                <th className="px-6 py-4 font-bold text-right">Sales (30d)</th>
+                <th className="px-6 py-4 font-bold text-right">Weeks Cover</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#E9AD5D]/10 bg-white">
+              {products.map((item) => {
+                const exVat = item.rrp / 1.2;
+                const margin = item.rrp > 0 ? ((exVat - item.cost) / exVat) * 100 : 0;
+                const weeksCover = item.sales_last_month > 0 ? (item.stock / (item.sales_last_month / 4)) : 999;
+                
+                // Color code weeks cover
+                let coverColor = "text-[#071013]";
+                if (weeksCover > (targetWeeks * 1.5)) coverColor = "text-[#D12323] font-bold"; // Overstocked
+                if (weeksCover < (targetWeeks * 0.8)) coverColor = "text-[#E9AD5D] font-bold"; // Low Stock
+
+                return (
+                  <tr key={item.id} className="hover:bg-[#F9EFDD]/30 transition-colors">
+                    <td className="px-6 py-4 font-medium text-[#071013]">{item.name}</td>
+                    <td className="px-6 py-4 text-right text-[#071013]/60">£{item.cost.toFixed(2)}</td>
+                    <td className="px-6 py-4 text-right text-[#071013] font-bold">£{item.rrp.toFixed(2)}</td>
+                    <td className="px-6 py-4 text-right">
+                       <span className={`font-bold px-2 py-1 rounded ${margin < 45 ? 'bg-[#D12323]/10 text-[#D12323]' : 'bg-green-100 text-green-700'}`}>
+                        {margin.toFixed(0)}%
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right font-medium">{item.stock}</td>
+                    <td className="px-6 py-4 text-right text-[#778472] font-bold">{item.sales_last_month}</td>
+                    <td className={`px-6 py-4 text-right ${coverColor}`}>
+                      {weeksCover === 999 ? "∞" : weeksCover.toFixed(1)}
+                    </td>
+                  </tr>
+                );
+              })}
+              {products.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="text-center py-8 text-stone-400">No products found in this category.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        
+        <div className="p-4 border-t border-[#F9EFDD] bg-[#F9EFDD]/30 rounded-b-2xl flex justify-end">
+           <button onClick={onClose} className="px-6 py-2 bg-white border border-[#778472]/20 rounded-lg text-[#778472] font-bold hover:bg-[#F9EFDD] transition-colors">
+             Close
+           </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const BudgetModal = ({ isOpen, onClose, data }) => {
+  if (!isOpen) return null;
+  
+  const { targetStock, currentStock, budget } = data;
+
+  return (
+    <div className="fixed inset-0 bg-[#071013]/60 z-50 flex items-center justify-center backdrop-blur-sm p-4 animate-in fade-in duration-200 font-['Poppins']">
+      <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl flex flex-col animate-in slide-in-from-bottom-4 duration-300 border-2 border-[#778472]">
+        <div className="p-5 border-b border-[#F9EFDD] flex justify-between items-center bg-[#778472] text-[#F9EFDD]">
+          <div className="flex items-center gap-3">
+             <div className="bg-[#F9EFDD]/20 p-2 rounded-full">
+                <Calculator size={20} className="text-[#E9AD5D]" />
+             </div>
+             <h3 className="font-bold text-xl font-['Caveat']">Buying Budget</h3>
+          </div>
+          <button onClick={onClose} className="text-[#F9EFDD]/70 hover:text-[#F9EFDD] transition-colors">
+            <X size={24} />
+          </button>
+        </div>
+        <div className="p-6 space-y-6 bg-white">
+           <div className="bg-[#F9EFDD]/30 p-4 rounded-xl border border-[#778472]/10 text-sm text-[#071013]/70 italic">
+             "Target Stock calculates the ideal inventory level based on UK Independent Retailer benchmarks for each category (e.g. 9 weeks for Homeware, 33 for Jewellery)."
+           </div>
+           
+           <div className="space-y-4">
+              <div className="flex justify-between items-center pb-2 border-b border-[#F9EFDD]">
+                 <span className="text-[#071013]/60 font-medium">Ideal Stock (The Goal)</span>
+                 <span className="text-[#071013] font-bold">£{targetStock.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center pb-2 border-b border-[#F9EFDD]">
+                 <span className="text-[#071013]/60 font-medium">Current Stock (Actual)</span>
+                 <span className="text-[#D12323] font-bold">- £{currentStock.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center pt-2">
+                 <span className="text-[#778472] font-extrabold text-lg">Open to Buy (Budget)</span>
+                 <span className="text-[#778472] font-extrabold text-xl">£{budget.toLocaleString()}</span>
+              </div>
+           </div>
+
+           <div className="text-xs text-[#071013]/40 text-center">
+             Calculated using specific category targets + sales velocity.
+           </div>
+        </div>
+        <div className="p-4 border-t border-[#F9EFDD] bg-[#F9EFDD]/30 rounded-b-2xl">
+           <button onClick={onClose} className="w-full py-2 bg-white border border-[#778472]/20 rounded-lg text-[#778472] font-bold hover:bg-[#F9EFDD] transition-colors">
+             Close
+           </button>
+        </div>
       </div>
     </div>
   );
@@ -361,59 +636,6 @@ const MarketingModal = ({ isOpen, onClose, content, isLoading, productName }) =>
               <FormattedText text={content} />
             </div>
           )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const BudgetModal = ({ isOpen, onClose, data }) => {
-  if (!isOpen) return null;
-  
-  const { targetStock, currentStock, budget } = data;
-
-  return (
-    <div className="fixed inset-0 bg-[#071013]/60 z-50 flex items-center justify-center backdrop-blur-sm p-4 animate-in fade-in duration-200 font-['Poppins']">
-      <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl flex flex-col animate-in slide-in-from-bottom-4 duration-300 border-2 border-[#778472]">
-        <div className="p-5 border-b border-[#F9EFDD] flex justify-between items-center bg-[#778472] text-[#F9EFDD]">
-          <div className="flex items-center gap-3">
-             <div className="bg-[#F9EFDD]/20 p-2 rounded-full">
-                <Calculator size={20} className="text-[#E9AD5D]" />
-             </div>
-             <h3 className="font-bold text-xl font-['Caveat']">Buying Budget</h3>
-          </div>
-          <button onClick={onClose} className="text-[#F9EFDD]/70 hover:text-[#F9EFDD] transition-colors">
-            <X size={24} />
-          </button>
-        </div>
-        <div className="p-6 space-y-6 bg-white">
-           <div className="bg-[#F9EFDD]/30 p-4 rounded-xl border border-[#778472]/10 text-sm text-[#071013]/70 italic">
-             "This calculation helps you buy enough stock to last 10 weeks without overfilling your stock room."
-           </div>
-           
-           <div className="space-y-4">
-              <div className="flex justify-between items-center pb-2 border-b border-[#F9EFDD]">
-                 <span className="text-[#071013]/60 font-medium">Target Stock Level (10wks)</span>
-                 <span className="text-[#071013] font-bold">£{targetStock.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between items-center pb-2 border-b border-[#F9EFDD]">
-                 <span className="text-[#071013]/60 font-medium">Current Stock (Cost)</span>
-                 <span className="text-[#D12323] font-bold">- £{currentStock.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between items-center pt-2">
-                 <span className="text-[#778472] font-extrabold text-lg">Safe to Spend</span>
-                 <span className="text-[#778472] font-extrabold text-xl">£{budget.toLocaleString()}</span>
-              </div>
-           </div>
-
-           <div className="text-xs text-[#071013]/40 text-center">
-             Based on your average weekly sales at cost price.
-           </div>
-        </div>
-        <div className="p-4 border-t border-[#F9EFDD] bg-[#F9EFDD]/30 rounded-b-2xl">
-           <button onClick={onClose} className="w-full py-2 bg-white border border-[#778472]/20 rounded-lg text-[#778472] font-bold hover:bg-[#F9EFDD] transition-colors">
-             Close
-           </button>
         </div>
       </div>
     </div>
@@ -644,7 +866,7 @@ const StockRoom = ({ inventory, setInventory }) => {
                       {getMargin(item.cost, item.rrp).toFixed(0)}%
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-right font-medium text-[#071013]">{item.stock}</td>
+                  <td className="px-6 py-4 text-right font-medium">{item.stock}</td>
                   <td className="px-6 py-4 text-right text-[#778472] font-bold">{item.sales_last_month}</td>
                   <td className={`px-6 py-4 text-right font-bold ${isLow ? 'text-[#E9AD5D]' : 'text-[#071013]/30'}`}>
                      {target}
@@ -657,7 +879,7 @@ const StockRoom = ({ inventory, setInventory }) => {
                     >
                       <Megaphone size={16} />
                     </button>
-                    <button onClick={() => handleDelete(item.id)} className="p-1.5 text-[#071013]/30 hover:text-[#D12323] transition-colors"><X size={16} /></button>
+                    <button onClick={() => handleDelete(item.id)} className="p-1.5 text-stone-300 hover:text-red-500 transition-colors"><X size={16} /></button>
                   </td>
                 </tr>
                );
@@ -703,6 +925,14 @@ const BigPicture = ({ inventory }) => {
   const [budgetModalOpen, setBudgetModalOpen] = useState(false);
   const [aiAdvice, setAiAdvice] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
+  // Add state for selected category for the detail modal
+  const [selectedCategory, setSelectedCategory] = useState(null);
+
+  // Helper to filter products for the modal
+  const categoryProducts = useMemo(() => {
+    if (!selectedCategory) return [];
+    return inventory.filter(item => (item.category || 'Uncategorized') === selectedCategory);
+  }, [inventory, selectedCategory]);
   
   const stats = useMemo(() => {
     const totalStockVal = inventory.reduce((acc, item) => acc + (item.stock * item.cost), 0);
@@ -715,13 +945,15 @@ const BigPicture = ({ inventory }) => {
     return { totalStockVal, totalSalesVal, weeksCover };
   }, [inventory]);
 
-  // Budget Calculation Logic (Target 10 weeks cover)
+  // Budget Calculation Logic (Variable Target Weeks)
   const budgetData = useMemo(() => {
     let totalTargetStockVal = 0;
     
     inventory.forEach(item => {
        const weeklySales = item.sales_last_month / 4;
-       const itemTargetStockVal = weeklySales * item.cost * 10; // 10 weeks cover
+       // Get category specific target weeks
+       const targetWeeks = getCategoryTargetWeeks(item.category);
+       const itemTargetStockVal = weeklySales * item.cost * targetWeeks;
        totalTargetStockVal += itemTargetStockVal;
     });
 
@@ -755,11 +987,12 @@ const BigPicture = ({ inventory }) => {
     
     return Object.keys(cats).map(k => {
        const weeklySalesQty = cats[k].salesQty / 4;
-       // Target Stock Value = Weekly Sales Qty * Avg Item Cost * 10
-       // We iterate through items to get exact target value
+       // Target Stock Value based on category specific benchmark
+       // We iterate through items to get exact target value per category
        let catTargetStockVal = 0;
        inventory.filter(i => (i.category || 'Uncategorized') === k).forEach(i => {
-          catTargetStockVal += (i.sales_last_month / 4) * i.cost * 10;
+          const weeks = getCategoryTargetWeeks(i.category);
+          catTargetStockVal += (i.sales_last_month / 4) * i.cost * weeks;
        });
 
        return {
@@ -786,7 +1019,7 @@ const BigPicture = ({ inventory }) => {
     Data:
     - Cash tied up in Stock: £${stats.totalStockVal.toFixed(2)}
     - Recent Sales: £${stats.totalSalesVal.toFixed(2)}
-    - Weeks of Stock: ${stats.weeksCover.toFixed(1)} (Ideal is 10-12)
+    - Weeks of Stock: ${stats.weeksCover.toFixed(1)} (Ideal is variable, approx 10)
     
     Category Breakdown: ${JSON.stringify(categoryBreakdown)}`;
 
@@ -796,18 +1029,18 @@ const BigPicture = ({ inventory }) => {
   };
 
   return (
-    <div className="space-y-6 h-full overflow-auto pr-2 pb-20 font-['Poppins']">
+    <div className="space-y-6 h-full overflow-auto pr-2 pb-20">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-[#F9EFDD] p-8 rounded-2xl border border-[#E9AD5D]/30 shadow-sm">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-2xl border border-indigo-100 shadow-sm">
          <div>
-           <h2 className="font-bold text-[#071013] text-2xl font-['Caveat']">How is the shop doing?</h2>
-           <p className="text-[#071013]/70 text-sm mt-1">Here is your real-time pulse check.</p>
+           <h2 className="font-bold text-indigo-900 text-xl">How is the shop doing?</h2>
+           <p className="text-indigo-700/80 text-sm mt-1">Here is your real-time pulse check.</p>
          </div>
          <button 
            onClick={handleExecutiveSummary}
-           className="flex items-center gap-2 px-6 py-3 bg-[#778472] text-[#F9EFDD] rounded-full shadow-sm hover:bg-[#5f6a5a] hover:scale-105 transition-all text-sm font-bold border border-[#778472]"
+           className="flex items-center gap-2 px-6 py-3 bg-white text-indigo-600 rounded-full shadow-sm hover:shadow-md hover:scale-105 transition-all text-sm font-bold border border-indigo-100"
          >
-           <Sparkles size={18} className="text-[#E9AD5D]" />
+           <Sparkles size={18} className="text-yellow-500" />
            Run Health Check
          </button>
       </div>
@@ -816,20 +1049,20 @@ const BigPicture = ({ inventory }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard title="Cash in Stock" value={`£${stats.totalStockVal.toFixed(0)}`} subtext="Money sitting on shelves" color="stone" />
         <StatCard title="Sales (30 Days)" value={`£${stats.totalSalesVal.toFixed(0)}`} subtext="Money coming in" trend="up" />
-        <StatCard title="Weeks of Stock" value={`${stats.weeksCover.toFixed(1)}`} subtext="Aim for 10-12 weeks" trend={stats.weeksCover > 16 ? "down" : "up"} />
+        <StatCard title="Weeks of Stock" value={`${stats.weeksCover.toFixed(1)}`} subtext="Overall Avg (Targets vary)" trend={stats.weeksCover > 16 ? "down" : "up"} />
         <StatCard title="Avg Profit Margin" value="52%" subtext="Aim for 50%+" trend="up" />
       </div>
 
       {/* Main Visuals - Equal Columns & Spacing */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Category Performance */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-[#E9AD5D]/30 shadow-sm overflow-hidden h-full flex flex-col">
-          <div className="p-6 border-b border-[#F9EFDD] bg-[#F9EFDD]/30">
-            <h3 className="font-bold text-[#778472] text-lg flex items-center gap-2 font-['Poppins']">
-              <BarChart3 size={20} />
+        <div className="lg:col-span-2 bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden h-full flex flex-col">
+          <div className="p-6 border-b border-stone-100 bg-stone-50/50">
+            <h3 className="font-bold text-stone-800 text-lg flex items-center gap-2">
+              <BarChart3 size={20} className="text-indigo-500" />
               Category Breakdown
             </h3>
-            <p className="text-[#071013]/60 text-xs mt-1">Which departments are working hardest for you?</p>
+            <p className="text-stone-400 text-xs mt-1">Which departments are working hardest for you? (Click row to see details)</p>
           </div>
           <div className="p-6 flex-1">
             <table className="w-full text-sm">
@@ -845,11 +1078,18 @@ const BigPicture = ({ inventory }) => {
               </thead>
               <tbody>
                 {categoryBreakdown.map(cat => (
-                  <tr key={cat.name} className="border-b border-[#F9EFDD]/50 last:border-0 hover:bg-[#F9EFDD]/30 transition-colors">
-                    <td className="py-4 font-medium text-[#071013] pl-2">{cat.name}</td>
-                    <td className="py-4 text-right font-bold text-[#778472]">£{cat.sales.toFixed(0)}</td>
-                    <td className="py-4 text-right text-[#071013]/60">£{cat.stock.toFixed(0)}</td>
-                    <td className="py-4 text-right text-[#071013]/60">{(cat.sales / (cat.stock || 1)).toFixed(1)}</td>
+                  <tr 
+                     key={cat.name} 
+                     onClick={() => setSelectedCategory(cat.name)}
+                     className="border-b border-stone-50 last:border-0 hover:bg-[#F9EFDD]/50 transition-colors cursor-pointer group"
+                  >
+                    <td className="py-4 font-medium text-stone-900 pl-2 flex items-center gap-2">
+                       {cat.name}
+                       <Eye size={14} className="text-[#E9AD5D] opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </td>
+                    <td className="py-4 text-right font-bold text-stone-700">£{cat.sales.toFixed(0)}</td>
+                    <td className="py-4 text-right text-stone-500">£{cat.stock.toFixed(0)}</td>
+                    <td className="py-4 text-right text-stone-600">{(cat.sales / (cat.stock || 1)).toFixed(1)}</td>
                     <td className="py-4 text-right text-[#E9AD5D] font-bold">£{cat.targetStock.toFixed(0)}</td>
                     <td className="py-4 text-right font-bold text-[#778472] pr-2">{cat.avgMargin.toFixed(0)}%</td>
                   </tr>
@@ -860,13 +1100,13 @@ const BigPicture = ({ inventory }) => {
         </div>
 
         {/* Buying Budget (OTB) */}
-        <div className="bg-white rounded-xl border border-[#E9AD5D]/30 shadow-sm overflow-hidden flex flex-col h-full">
-          <div className="p-6 border-b border-[#F9EFDD] bg-stone-50/50">
-            <h3 className="font-bold text-[#778472] text-lg flex items-center gap-2 font-['Poppins']">
-              <Calculator size={20} />
+        <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden flex flex-col h-full">
+          <div className="p-6 border-b border-stone-100 bg-stone-50/50">
+            <h3 className="font-bold text-stone-800 text-lg flex items-center gap-2">
+              <Calculator size={20} className="text-emerald-500" />
               Buying Budget
             </h3>
-            <p className="text-[#071013]/60 text-xs mt-1">Can I afford new stock?</p>
+            <p className="text-stone-400 text-xs mt-1">Can I afford new stock?</p>
           </div>
           <div className="p-8 flex-1 flex flex-col justify-center items-center text-center">
             <div className="w-40 h-40 rounded-full border-8 border-emerald-50 flex items-center justify-center mb-6 bg-white shadow-inner">
@@ -898,6 +1138,13 @@ const BigPicture = ({ inventory }) => {
         isOpen={budgetModalOpen}
         onClose={() => setBudgetModalOpen(false)}
         data={budgetData}
+      />
+      
+      <CategoryDetailModal 
+        isOpen={!!selectedCategory}
+        onClose={() => setSelectedCategory(null)}
+        categoryName={selectedCategory}
+        products={categoryProducts}
       />
     </div>
   );
@@ -981,7 +1228,7 @@ const WeeklyFocus = ({ inventory }) => {
 
   return (
     <div className="h-full overflow-auto pr-2 pb-20">
-      <div className="mb-6 bg-white p-6 rounded-xl border border-[#E9AD5D]/30 shadow-sm">
+      <div className="mb-6 bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
         <h2 className="font-bold text-stone-800 text-xl flex items-center gap-2">
            <ListTodo size={24} className="text-indigo-600" />
            My Weekly Focus
@@ -1002,7 +1249,7 @@ const WeeklyFocus = ({ inventory }) => {
 
         {actions.map(action => (
           <div key={action.id} className={`bg-white p-6 rounded-xl border-l-4 shadow-sm hover:shadow-md transition-all group ${
-            action.severity === 'high' ? 'border-[#D12323]' : action.severity === 'medium' ? 'border-[#E9AD5D]' : 'border-[#778472]'
+            action.severity === 'high' ? 'border-red-400' : action.severity === 'medium' ? 'border-amber-400' : 'border-blue-400'
           }`}>
             <div className="flex flex-col md:flex-row gap-6 justify-between items-start md:items-center">
               <div className="flex-1">
@@ -1013,7 +1260,7 @@ const WeeklyFocus = ({ inventory }) => {
                   }`}>
                     {action.type === 'clearance' ? 'Cash Flow' : action.type === 'restock' ? 'Best Seller' : 'Profit'}
                   </span>
-                  <h3 className="font-bold text-stone-800 text-lg">{action.title}</h3>
+                  <h3 className="font-bold text-[#071013] text-lg">{action.title}</h3>
                 </div>
                 <p className="text-stone-600 text-sm leading-relaxed">{action.desc}</p>
               </div>
@@ -1041,9 +1288,218 @@ const WeeklyFocus = ({ inventory }) => {
   );
 };
 
+// --- New WSSI VIEW (Weekly Sales, Stock, Intake) ---
+const WSSI = ({ inventory }) => {
+    const [aiModalOpen, setAiModalOpen] = useState(false);
+    const [aiAdvice, setAiAdvice] = useState('');
+    const [aiLoading, setAiLoading] = useState(false);
+    // State for the new detail modal
+    const [selectedWSSICategory, setSelectedWSSICategory] = useState(null);
+    
+    // Aggregate data by category
+    const wssiData = useMemo(() => {
+        const cats = {};
+        inventory.forEach(item => {
+            const catName = item.category || 'Uncategorized';
+            if (!cats[catName]) {
+                cats[catName] = {
+                    name: catName,
+                    costSum: 0,
+                    stockVal: 0,
+                    stockUnits: 0, // NEW: Units
+                    salesVal30d: 0,
+                    salesUnits30d: 0, // NEW: Units
+                    count: 0
+                };
+            }
+            cats[catName].costSum += item.cost;
+            cats[catName].stockVal += (item.stock * item.cost);
+            cats[catName].stockUnits += item.stock; // Accumulate units
+            
+            cats[catName].salesVal30d += (item.sales_last_month * item.cost); // Sales at cost
+            cats[catName].salesUnits30d += item.sales_last_month; // Accumulate units
+            
+            cats[catName].count += 1;
+        });
+
+        return Object.values(cats).map(cat => {
+            // VALUE Calculations
+            const weeklySalesCost = cat.salesVal30d / 4;
+            const targetWeeks = getCategoryTargetWeeks(cat.name);
+            const targetStockVal = weeklySalesCost * targetWeeks;
+            const currentCover = weeklySalesCost > 0 ? (cat.stockVal / weeklySalesCost) : 999;
+            
+            // Forward Projections (Simplified Linear)
+            // End of Month Stock = Current - (4 weeks sales)
+            const projectedStock = Math.max(0, cat.stockVal - (weeklySalesCost * 4));
+            
+            // Intake Required = Target Stock - Projected Stock
+            // If we have enough stock, intake is 0.
+            const intakeReq = Math.max(0, targetStockVal - projectedStock);
+
+            // UNIT Calculations
+            const weeklySalesUnits = cat.salesUnits30d / 4;
+            const targetStockUnits = Math.ceil(weeklySalesUnits * targetWeeks);
+            const projectedStockUnits = Math.max(0, cat.stockUnits - (weeklySalesUnits * 4));
+            const intakeReqUnits = Math.max(0, targetStockUnits - projectedStockUnits);
+
+            return {
+                ...cat,
+                weeklySalesCost,
+                weeklySalesUnits,
+                targetWeeks,
+                targetStockVal,
+                targetStockUnits,
+                currentCover,
+                projectedStock,
+                projectedStockUnits,
+                intakeReq,
+                intakeReqUnits
+            };
+        });
+    }, [inventory]);
+
+    // Filter products for the selected category modal
+    const detailProducts = useMemo(() => {
+        if (!selectedWSSICategory) return [];
+        return inventory.filter(item => (item.category || 'Uncategorized') === selectedWSSICategory);
+    }, [inventory, selectedWSSICategory]);
+
+    const handleAnalyzeWSSI = async () => {
+        setAiModalOpen(true);
+        setAiLoading(true);
+        setAiAdvice("");
+    
+        const prompt = `Act as a senior merchandise planner. Review this WSSI (Weekly Sales, Stock, Intake) data for an independent retailer.
+        
+        Analyze the "Forward Plan" (Next 4 Weeks).
+        1. Identify which category has the highest "Intake Requirement" (Open to Buy).
+        2. Identify any category that is significantly overstocked (Current Cover > Target Cover).
+        3. Provide 3 specific actions to balance the stock.
+        
+        WSSI Data: ${JSON.stringify(wssiData.map(d => ({
+            category: d.name,
+            current_cover_weeks: d.currentCover.toFixed(1),
+            target_cover_weeks: d.targetWeeks,
+            intake_needed_GBP: d.intakeReq.toFixed(0),
+            intake_needed_units: d.intakeReqUnits
+        })))}`;
+    
+        const advice = await callGemini(prompt, {});
+        setAiAdvice(advice);
+        setAiLoading(false);
+      };
+
+    return (
+        <div className="space-y-6 h-full overflow-auto pr-2 pb-20">
+             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-[#F9EFDD] p-8 rounded-2xl border border-[#E9AD5D]/30 shadow-sm">
+                <div>
+                    <h2 className="font-bold text-[#071013] text-2xl font-['Caveat']">WSSI Planner</h2>
+                    <p className="text-[#071013]/70 text-sm mt-1">Weekly Sales, Stock & Intake. Plan your future cash flow. (Click row to drill down)</p>
+                </div>
+                <button 
+                    onClick={handleAnalyzeWSSI}
+                    className="flex items-center gap-2 px-6 py-3 bg-[#778472] text-[#F9EFDD] rounded-full shadow-sm hover:bg-[#5f6a5a] hover:scale-105 transition-all text-sm font-bold border border-[#778472]"
+                >
+                    <Sparkles size={18} className="text-[#E9AD5D]" />
+                    Analyze Forward Plan
+                </button>
+            </div>
+
+            <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left border-collapse">
+                        <thead className="text-xs text-[#071013]/50 uppercase bg-[#F9EFDD] border-b border-[#E9AD5D]/20">
+                            <tr>
+                                <th className="px-6 py-4 font-bold">Category</th>
+                                <th className="px-6 py-4 font-bold text-right">Current Stock</th>
+                                <th className="px-6 py-4 font-bold text-right">Wkly Sales</th>
+                                <th className="px-6 py-4 font-bold text-center">Cover (Wks)</th>
+                                <th className="px-6 py-4 font-bold text-center">Target (Wks)</th>
+                                <th className="px-6 py-4 font-bold text-right bg-[#F9EFDD]/50">4-Wk Forecast</th>
+                                <th className="px-6 py-4 font-bold text-right bg-[#F9EFDD]/50">Proj. Close Stock</th>
+                                <th className="px-6 py-4 font-bold text-right text-[#778472]">Intake Required</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#E9AD5D]/10">
+                            {wssiData.map(row => (
+                                <tr 
+                                    key={row.name} 
+                                    onClick={() => setSelectedWSSICategory(row.name)}
+                                    className="hover:bg-[#F9EFDD]/30 transition-colors cursor-pointer group"
+                                >
+                                    <td className="px-6 py-4 font-medium text-[#071013] flex items-center gap-2">
+                                        {row.name}
+                                        <Eye size={14} className="text-[#E9AD5D] opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </td>
+                                    {/* Current Stock */}
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="font-bold">£{row.stockVal.toLocaleString(undefined, {maximumFractionDigits:0})}</div>
+                                        <div className="text-xs text-[#071013]/50 flex items-center justify-end gap-1"><Package size={10}/> {row.stockUnits} units</div>
+                                    </td>
+                                    
+                                    {/* Weekly Sales */}
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="font-bold">£{row.weeklySalesCost.toLocaleString(undefined, {maximumFractionDigits:0})}</div>
+                                        <div className="text-xs text-[#071013]/50 flex items-center justify-end gap-1"><Package size={10}/> {row.weeklySalesUnits.toFixed(1)} units</div>
+                                    </td>
+                                    
+                                    {/* Cover Status */}
+                                    <td className="px-6 py-4 text-center">
+                                        <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                            row.currentCover > row.targetWeeks * 1.5 ? 'bg-[#D12323]/10 text-[#D12323]' :
+                                            row.currentCover < row.targetWeeks * 0.8 ? 'bg-[#E9AD5D]/20 text-[#B47B2B]' :
+                                            'bg-green-100 text-green-700'
+                                        }`}>
+                                            {row.currentCover > 52 ? '52+' : row.currentCover.toFixed(1)}
+                                        </span>
+                                    </td>
+                                    
+                                    <td className="px-6 py-4 text-center text-[#071013]/60">{row.targetWeeks}</td>
+                                    
+                                    {/* Projections */}
+                                    <td className="px-6 py-4 text-right bg-[#F9EFDD]/20 font-medium text-[#071013]/70">
+                                        £{(row.weeklySalesCost * 4).toLocaleString(undefined, {maximumFractionDigits:0})}
+                                    </td>
+                                    <td className="px-6 py-4 text-right bg-[#F9EFDD]/20 font-medium text-[#071013]/70">
+                                        £{row.projectedStock.toLocaleString(undefined, {maximumFractionDigits:0})}
+                                        <div className="text-xs opacity-60">{Math.round(row.projectedStockUnits)} units</div>
+                                    </td>
+                                    
+                                    {/* Intake Requirement (OTB) */}
+                                    <td className="px-6 py-4 text-right font-bold text-[#778472]">
+                                        <div>£{row.intakeReq.toLocaleString(undefined, {maximumFractionDigits:0})}</div>
+                                        <div className="text-xs text-[#778472]/70 flex items-center justify-end gap-1"><Package size={10}/> {Math.ceil(row.intakeReqUnits)} units</div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <AiConsultantModal 
+                isOpen={aiModalOpen} 
+                onClose={() => setAiModalOpen(false)} 
+                advice={aiAdvice} 
+                isLoading={aiLoading} 
+                title="WSSI Strategic Analysis" 
+            />
+
+            <WSSIDetailModal 
+                isOpen={!!selectedWSSICategory}
+                onClose={() => setSelectedWSSICategory(null)}
+                categoryName={selectedWSSICategory}
+                products={detailProducts}
+            />
+        </div>
+    );
+};
+
 // 4. SYSTEM SETUP VIEW
-const SystemSetup = () => (
-  <div className="h-full overflow-auto bg-white rounded-xl border border-[#E9AD5D]/30 p-8 pb-20 font-['Poppins']">
+const SystemSetup = () => {
+    return (
+  <div className="h-full overflow-auto bg-white rounded-xl border border-stone-200 p-8 pb-20">
     <div className="max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <div className="p-3 bg-purple-100 rounded-xl text-purple-700">
@@ -1058,70 +1514,90 @@ const SystemSetup = () => (
       <div className="space-y-8">
         <div className="bg-stone-50 p-6 rounded-xl border border-stone-200">
           <div className="flex items-center gap-2 mb-4 text-green-700 font-bold uppercase text-xs tracking-wider">
-            <FileSpreadsheet size={16} />
-            Step 1: The Stock Room (Inventory)
+            <div className="flex items-center gap-2">
+              <FileSpreadsheet size={16} />
+              <span>Step 1: The Stock Room (Inventory)</span>
+            </div>
           </div>
           <h3 className="font-bold text-stone-900 mb-2">Create a tab named "Stock_Room"</h3>
           <p className="text-sm text-stone-600 mb-4">
-            This is your master list. Add these exact headers in Row 1.
+            The foundational dataset for your Retail Command Centre. Ensure this tab contains the following headers in Row 1 to enable accurate data parsing.
           </p>
-          <div className="grid grid-cols-3 gap-2 text-xs font-mono bg-white p-4 rounded-lg border border-[#778472]/10 text-[#071013]/80">
-             <div className="p-2 bg-[#F9EFDD] rounded">A: SKU</div>
-             <div className="p-2 bg-[#F9EFDD] rounded">B: Product Name</div>
-             <div className="p-2 bg-[#F9EFDD] rounded">C: Category</div>
-             <div className="p-2 bg-[#F9EFDD] rounded">D: Supplier</div>
-             <div className="p-2 bg-[#F9EFDD] rounded">E: Cost Price</div>
-             <div className="p-2 bg-[#F9EFDD] rounded">F: Selling Price</div>
-             <div className="p-2 bg-[#F9EFDD] rounded">G: In Stock</div>
-             <div className="p-2 bg-[#F9EFDD] rounded">H: Sold (30d)</div>
+          <div className="grid grid-cols-3 gap-2 text-xs font-mono bg-white p-4 rounded-lg border border-stone-200 text-stone-600">
+             <div className="p-2 bg-stone-50 rounded">A: SKU</div>
+             <div className="p-2 bg-stone-50 rounded">B: Product Name</div>
+             <div className="p-2 bg-stone-50 rounded">C: Category</div>
+             <div className="p-2 bg-stone-50 rounded">D: Supplier</div>
+             <div className="p-2 bg-stone-50 rounded">E: Cost Price</div>
+             <div className="p-2 bg-stone-50 rounded">F: Selling Price</div>
+             <div className="p-2 bg-stone-50 rounded">G: In Stock</div>
+             <div className="p-2 bg-stone-50 rounded">H: Sold (30d)</div>
+             <div className="p-2 bg-stone-50 rounded border-l-4 border-indigo-200">I: Target Weeks (Optional)</div>
           </div>
         </div>
 
         <div className="bg-stone-50 p-6 rounded-xl border border-stone-200">
           <div className="flex items-center gap-2 mb-4 text-blue-700 font-bold uppercase text-xs tracking-wider">
-            <UploadCloud size={16} />
-            Step 2: POS Data Import (Optional)
+             <div className="flex items-center gap-2">
+              <UploadCloud size={16} />
+              <span>Step 2: WSSI Logic (Forward Planning)</span>
+             </div>
           </div>
-          <h3 className="font-bold text-stone-900 mb-2">Create a tab named "POS_Import"</h3>
+          <h3 className="font-bold text-stone-900 mb-2">Calculating Open-to-Buy (OTB)</h3>
           <p className="text-sm text-stone-600 mb-4">
-            This is where you paste your raw sales data export from Shopify, Lightspeed, or Zettle. 
-            The main dashboard will read from here to show historical trends.
+            Extend your Stock_Room table by adding three specific columns to handle the forward-planning mathematics.
           </p>
-          <div className="bg-white p-4 rounded-lg border border-stone-200 text-xs font-mono text-blue-600 break-all">
-            (No formula needed here - just paste your CSV export starting at cell A1)
+          <div className="bg-white p-4 rounded-lg border border-stone-200 text-xs font-mono text-blue-600 break-all space-y-2">
+            <p className="font-bold text-stone-800 border-b border-stone-100 pb-1">Column J: Weekly Sales Velocity</p>
+            <p>=(H2/4)*E2</p>
+            
+            <p className="font-bold text-stone-800 border-b border-stone-100 pb-1 pt-2">Column K: Target Stock Valuation</p>
+            <p>=J2*I2</p>
+            
+            <p className="font-bold text-stone-800 border-b border-stone-100 pb-1 pt-2">Column L: Intake Requirement</p>
+            <p>=MAX(0, K2-( (G2*E2)-(J2*4) ))</p>
           </div>
         </div>
 
         <div className="bg-stone-50 p-6 rounded-xl border border-stone-200">
-          <div className="flex items-center gap-2 mb-4 text-blue-700 font-bold uppercase text-xs tracking-wider">
-            <Calculator size={16} />
-            Step 3: The Big Picture (Calculations)
+          <div className="flex items-center gap-2 mb-4 text-amber-700 font-bold uppercase text-xs tracking-wider">
+             <div className="flex items-center gap-2">
+              <Calculator size={16} />
+              <span>Step 3: Category Benchmarks</span>
+             </div>
           </div>
-          <h3 className="font-bold text-stone-900 mb-2">Create a tab named "Big_Picture_Calc"</h3>
+          <h3 className="font-bold text-stone-900 mb-2">UK Independent Retailer Targets</h3>
           <p className="text-sm text-stone-600 mb-4">
-            This formula automatically groups your sales by Category for the dashboard. Paste it in cell <strong>A1</strong>.
+            Create a reference table or manually input these targets into **Column I** based on the category.
           </p>
-          <div className="bg-white p-4 rounded-lg border border-stone-200 text-xs font-mono text-blue-600 break-all">
-            =QUERY(Stock_Room!A:H, "Select C, Sum(H), Sum(G) Group by C Label Sum(H) 'Total Sales', Sum(G) 'Total Stock'")
+          <div className="grid grid-cols-2 gap-2 text-xs bg-white p-4 rounded-lg border border-stone-200 text-stone-600">
+             <div className="flex justify-between border-b border-stone-50 pb-1"><span>Jewellery & Watches</span> <span className="font-bold text-stone-900">33 Weeks</span></div>
+             <div className="flex justify-between border-b border-stone-50 pb-1"><span>Furniture</span> <span className="font-bold text-stone-900">12 Weeks</span></div>
+             <div className="flex justify-between border-b border-stone-50 pb-1"><span>Fashion & Footwear</span> <span className="font-bold text-stone-900">9 Weeks</span></div>
+             <div className="flex justify-between border-b border-stone-50 pb-1"><span>Gifts & Homeware</span> <span className="font-bold text-stone-900">9 Weeks</span></div>
+             <div className="flex justify-between border-b border-stone-50 pb-1"><span>Books & Stationery</span> <span className="font-bold text-stone-900">6 Weeks</span></div>
+             <div className="flex justify-between border-b border-stone-50 pb-1"><span>General / Other</span> <span className="font-bold text-stone-900">10 Weeks</span></div>
           </div>
         </div>
 
         <div className="bg-stone-50 p-6 rounded-xl border border-stone-200">
           <div className="flex items-center gap-2 mb-4 text-purple-700 font-bold uppercase text-xs tracking-wider">
-            <ListTodo size={16} />
-            Step 4: Weekly Focus (Automation)
+             <div className="flex items-center gap-2">
+              <ListTodo size={16} />
+              <span>Step 4: Automated Insights</span>
+             </div>
           </div>
-          <h3 className="font-bold text-stone-900 mb-2">Automate your "To-Do" List</h3>
+          <h3 className="font-bold text-stone-900 mb-2">The "Weekly Focus" Algorithm</h3>
           <p className="text-sm text-stone-600 mb-4">
-            Go back to your <strong>Stock_Room</strong> tab. In cell <strong>I2</strong> (Column I, Row 2), paste this formula and drag it down. It will flag items that need attention.
+            In **Column M**, paste this logic to auto-generate an action plan based on your inventory health.
           </p>
-          <div className="bg-white p-4 rounded-lg border border-stone-200 text-xs font-mono text-purple-600">
-            {/* Fixed the escape character issue here */}
-            =IFS(<br/>
-             &nbsp;&nbsp;AND(G2&gt;20, H2&lt;3), "Clearance Needed",<br/>
-             &nbsp;&nbsp;AND(G2&lt;5, H2&gt;10), "Reorder Now",<br/>
-             &nbsp;&nbsp;TRUE, "OK"<br/>
-             )
+          <div className="bg-white p-4 rounded-lg border border-stone-200 text-xs font-mono text-purple-600 overflow-x-auto">
+<pre>{`=IFS(
+  AND(G2 > 20, H2 < 3), "Clearance Opportunity",
+  AND(G2 < 10, H2 > 10), "Restock Alert",
+  AND(((F2/1.2)-E2)/(F2/1.2) < 0.40, H2 > 5), "Profit Check",
+  TRUE, "OK"
+)`}</pre>
           </div>
         </div>
 
@@ -1129,6 +1605,7 @@ const SystemSetup = () => (
     </div>
   </div>
 );
+};
 
 // --- Main Layout ---
 
@@ -1170,6 +1647,14 @@ const App = () => {
           </button>
 
           <button 
+            onClick={() => setActiveTab('wssi')}
+            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'wssi' ? 'bg-[#F9EFDD] text-[#778472] shadow-lg transform scale-105' : 'text-[#F9EFDD]/70 hover:bg-[#F9EFDD]/10 hover:text-white'}`}
+          >
+            <CalendarRange size={20} />
+            WSSI Planner
+          </button>
+
+          <button 
             onClick={() => setActiveTab('stock')}
             className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'stock' ? 'bg-[#F9EFDD] text-[#778472] shadow-lg transform scale-105' : 'text-[#F9EFDD]/70 hover:bg-[#F9EFDD]/10 hover:text-white'}`}
           >
@@ -1204,12 +1689,14 @@ const App = () => {
               {activeTab === 'stock' && "Manage Your Stock"}
               {activeTab === 'bigpicture' && "Your Shop's Pulse"}
               {activeTab === 'focus' && "This Week's Goals"}
+              {activeTab === 'wssi' && "Forward Planning (WSSI)"}
               {activeTab === 'setup' && "Build It Yourself"}
             </h2>
             <p className="text-[#071013]/70 text-sm mt-1 font-medium">
                {activeTab === 'stock' && "Keep your inventory accurate to get the best advice."}
                {activeTab === 'bigpicture' && "A clear view of what's selling and what's sticking."}
                {activeTab === 'focus' && "Simple steps to improve your cash flow today."}
+               {activeTab === 'wssi' && "Weekly Sales, Stock & Intake. Predict your future cash needs."}
                {activeTab === 'setup' && "Instructions to create this system in Google Sheets."}
             </p>
           </div>
@@ -1229,6 +1716,7 @@ const App = () => {
            {activeTab === 'stock' && <StockRoom inventory={inventory} setInventory={setInventory} />}
            {activeTab === 'bigpicture' && <BigPicture inventory={inventory} />}
            {activeTab === 'focus' && <WeeklyFocus inventory={inventory} />}
+           {activeTab === 'wssi' && <WSSI inventory={inventory} />}
            {activeTab === 'setup' && <SystemSetup />}
         </div>
         
